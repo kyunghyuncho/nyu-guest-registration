@@ -1030,6 +1030,7 @@ body.light-theme .modern-ui-container .visitor-card {
       const suggestionsBox = document.getElementById(suggestionsId);
 
       // Helper: resolve building from typed text (exact or unique substring match)
+      // Searches both BUILDING_NAME and ADDRESS_SIMPLE fields
       function tryResolveBuilding() {
         const val = input.value.trim().toLowerCase();
         if (!val || idHolder.value) return; // Already resolved or empty
@@ -1039,8 +1040,20 @@ body.light-theme .modern-ui-container .visitor-card {
           state.buildings = window.gBuildingData;
         }
 
-        // Try exact match first
-        const exact = state.buildings.find(b => (b.BUILDING_NAME || '').toLowerCase() === val);
+        // Helper: check if a building matches the search value
+        const matchesBldg = (b, searchVal) => {
+          const name = (b.BUILDING_NAME || '').toLowerCase();
+          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
+          return name.includes(searchVal) || addr.includes(searchVal);
+        };
+        const exactMatchBldg = (b, searchVal) => {
+          const name = (b.BUILDING_NAME || '').toLowerCase();
+          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
+          return name === searchVal || addr === searchVal;
+        };
+
+        // Try exact match first (name or address)
+        const exact = state.buildings.find(b => exactMatchBldg(b, val));
         if (exact) {
           input.value = exact.BUILDING_NAME || '';
           idHolder.value = exact.BUILDING_ID || '';
@@ -1049,8 +1062,8 @@ body.light-theme .modern-ui-container .visitor-card {
           return;
         }
 
-        // Try unique substring match
-        const partials = state.buildings.filter(b => (b.BUILDING_NAME || '').toLowerCase().includes(val));
+        // Try unique substring match (name or address)
+        const partials = state.buildings.filter(b => matchesBldg(b, val));
         if (partials.length === 1) {
           input.value = partials[0].BUILDING_NAME || '';
           idHolder.value = partials[0].BUILDING_ID || '';
@@ -1338,14 +1351,25 @@ body.light-theme .modern-ui-container .visitor-card {
       let buildingPageId = document.getElementById('buildingPageId').value;
 
       if (!buildingId || !buildingPageId) {
-        const match = state.buildings.find(b => (b.BUILDING_NAME || '').toLowerCase() === buildingName.toLowerCase());
-        if (match) {
-          buildingId = match.BUILDING_ID || '';
-          buildingPageId = match.PAGEID || '';
+        const searchVal = buildingName.toLowerCase();
+        // Search both BUILDING_NAME and ADDRESS_SIMPLE
+        const exactMatch = state.buildings.find(b => {
+          const name = (b.BUILDING_NAME || '').toLowerCase();
+          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
+          return name === searchVal || addr === searchVal;
+        });
+        if (exactMatch) {
+          buildingId = exactMatch.BUILDING_ID || '';
+          buildingPageId = exactMatch.PAGEID || '';
+          document.getElementById('buildingSearch').value = exactMatch.BUILDING_NAME || '';
           document.getElementById('buildingId').value = buildingId;
           document.getElementById('buildingPageId').value = buildingPageId;
         } else {
-          const matches = state.buildings.filter(b => (b.BUILDING_NAME || '').toLowerCase().includes(buildingName.toLowerCase()));
+          const matches = state.buildings.filter(b => {
+            const name = (b.BUILDING_NAME || '').toLowerCase();
+            const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
+            return name.includes(searchVal) || addr.includes(searchVal);
+          });
           if (matches.length === 1) {
             buildingId = matches[0].BUILDING_ID || '';
             buildingPageId = matches[0].PAGEID || '';
@@ -1426,34 +1450,48 @@ body.light-theme .modern-ui-container .visitor-card {
       if ((!buildingId || !buildingPageId) && buildingName) {
         console.log(`[Bulk] Resolving building "${buildingName}" from ${state.buildings.length} known buildings`);
 
-        // Try exact match (case-insensitive)
-        const exact = state.buildings.find(b => (b.BUILDING_NAME || '').toLowerCase() === buildingName.toLowerCase());
-        if (exact) {
-          buildingId = exact.BUILDING_ID || '';
-          buildingPageId = exact.PAGEID || '';
+        const searchVal = buildingName.toLowerCase();
+
+        // Helper: match against both BUILDING_NAME and ADDRESS_SIMPLE
+        const matchesBldg = (b, sv) => {
+          const name = (b.BUILDING_NAME || '').toLowerCase();
+          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
+          return name.includes(sv) || addr.includes(sv);
+        };
+        const exactMatchBldg = (b, sv) => {
+          const name = (b.BUILDING_NAME || '').toLowerCase();
+          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
+          return name === sv || addr === sv;
+        };
+
+        // Resolve helper: populate hidden fields from a matched building
+        const resolveBldg = (b, label) => {
+          buildingId = b.BUILDING_ID || '';
+          buildingPageId = b.PAGEID || '';
+          document.getElementById('bulkBuildingSearch').value = b.BUILDING_NAME || '';
           document.getElementById('bulkBuildingId').value = buildingId;
           document.getElementById('bulkBuildingPageId').value = buildingPageId;
-          console.log(`[Bulk] Exact match: ${exact.BUILDING_NAME}`);
+          console.log(`[Bulk] ${label}: ${b.BUILDING_NAME} (addr: ${b.ADDRESS_SIMPLE || 'n/a'})`);
+        };
+
+        // Try exact match (name or address, case-insensitive)
+        const exact = state.buildings.find(b => exactMatchBldg(b, searchVal));
+        if (exact) {
+          resolveBldg(exact, 'Exact match');
         } else {
-          // Try unique substring match
-          const partials = state.buildings.filter(b => (b.BUILDING_NAME || '').toLowerCase().includes(buildingName.toLowerCase()));
+          // Try unique substring match (name or address)
+          const partials = state.buildings.filter(b => matchesBldg(b, searchVal));
           if (partials.length === 1) {
-            buildingId = partials[0].BUILDING_ID || '';
-            buildingPageId = partials[0].PAGEID || '';
-            document.getElementById('bulkBuildingSearch').value = partials[0].BUILDING_NAME || '';
-            document.getElementById('bulkBuildingId').value = buildingId;
-            document.getElementById('bulkBuildingPageId').value = buildingPageId;
-            console.log(`[Bulk] Unique partial match: ${partials[0].BUILDING_NAME}`);
+            resolveBldg(partials[0], 'Unique partial match');
           } else if (partials.length > 1) {
             // Try starts-with match for better disambiguation
-            const startsWith = partials.filter(b => (b.BUILDING_NAME || '').toLowerCase().startsWith(buildingName.toLowerCase()));
+            const startsWith = partials.filter(b => {
+              const name = (b.BUILDING_NAME || '').toLowerCase();
+              const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
+              return name.startsWith(searchVal) || addr.startsWith(searchVal);
+            });
             if (startsWith.length === 1) {
-              buildingId = startsWith[0].BUILDING_ID || '';
-              buildingPageId = startsWith[0].PAGEID || '';
-              document.getElementById('bulkBuildingSearch').value = startsWith[0].BUILDING_NAME || '';
-              document.getElementById('bulkBuildingId').value = buildingId;
-              document.getElementById('bulkBuildingPageId').value = buildingPageId;
-              console.log(`[Bulk] Starts-with match: ${startsWith[0].BUILDING_NAME}`);
+              resolveBldg(startsWith[0], 'Starts-with match');
             } else {
               console.log(`[Bulk] Ambiguous: ${partials.length} buildings match "${buildingName}"`);
             }
