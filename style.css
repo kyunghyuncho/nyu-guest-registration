@@ -227,6 +227,28 @@ body.light-theme textarea:focus {
   background: rgba(255, 255, 255, 0.9) !important;
 }
 
+/* Custom premium styled select dropdowns */
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23bbaecf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1rem center !important;
+  background-size: 1.1rem !important;
+  padding-right: 2.5rem !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+
+body.light-theme select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%235a4b75' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+}
+
+select option {
+  background: var(--bg-app) !important;
+  color: var(--text-primary) !important;
+}
+
 /* Autocomplete Suggestion Box */
 .autocomplete-suggestions {
   position: absolute;

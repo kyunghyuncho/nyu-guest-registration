@@ -216,9 +216,53 @@ function setupEventListeners() {
       
       const tabName = tab.getAttribute('data-tab');
       if (tabName === 'single') {
+        // copy bulk to single
+        if (document.getElementById('bulkBuildingSearch').value) {
+          document.getElementById('buildingSearch').value = document.getElementById('bulkBuildingSearch').value;
+          document.getElementById('buildingId').value = document.getElementById('bulkBuildingId').value;
+          document.getElementById('buildingPageId').value = document.getElementById('bulkBuildingPageId').value;
+        }
+        if (document.getElementById('bulkStartDate').value) {
+          document.getElementById('startDate').value = document.getElementById('bulkStartDate').value;
+        }
+        if (document.getElementById('bulkStartTime').value) {
+          document.getElementById('startTime').value = document.getElementById('bulkStartTime').value;
+        }
+        if (document.getElementById('bulkEndDate').value) {
+          document.getElementById('endDate').value = document.getElementById('bulkEndDate').value;
+        }
+        if (document.getElementById('bulkEndTime').value) {
+          document.getElementById('endTime').value = document.getElementById('bulkEndTime').value;
+        }
+        if (document.getElementById('bulkVisitorType').value) {
+          document.getElementById('visitorType').value = document.getElementById('bulkVisitorType').value;
+        }
+
         document.getElementById('singleTab').style.display = 'block';
         document.getElementById('bulkTab').style.display = 'none';
       } else {
+        // copy single to bulk
+        if (document.getElementById('buildingSearch').value) {
+          document.getElementById('bulkBuildingSearch').value = document.getElementById('buildingSearch').value;
+          document.getElementById('bulkBuildingId').value = document.getElementById('buildingId').value;
+          document.getElementById('bulkBuildingPageId').value = document.getElementById('buildingPageId').value;
+        }
+        if (document.getElementById('startDate').value) {
+          document.getElementById('bulkStartDate').value = document.getElementById('startDate').value;
+        }
+        if (document.getElementById('startTime').value) {
+          document.getElementById('bulkStartTime').value = document.getElementById('startTime').value;
+        }
+        if (document.getElementById('endDate').value) {
+          document.getElementById('bulkEndDate').value = document.getElementById('endDate').value;
+        }
+        if (document.getElementById('endTime').value) {
+          document.getElementById('bulkEndTime').value = document.getElementById('endTime').value;
+        }
+        if (document.getElementById('visitorType').value) {
+          document.getElementById('bulkVisitorType').value = document.getElementById('visitorType').value;
+        }
+
         document.getElementById('singleTab').style.display = 'none';
         document.getElementById('bulkTab').style.display = 'block';
       }
@@ -334,10 +378,20 @@ function setupBuildingAutocomplete(inputId, idHolderId, pageIdHolderId, suggesti
       return;
     }
 
-    const matches = state.buildings.filter(b => 
-      b.BUILDING_NAME.toLowerCase().includes(val) || 
-      b.ADDRESS_SIMPLE.toLowerCase().includes(val)
-    ).slice(0, 6);
+    // Trigger refetch or window resolve if empty
+    if (state.buildings.length === 0) {
+      if (window.gBuildingData && window.gBuildingData.length > 0) {
+        state.buildings = window.gBuildingData;
+      } else {
+        fetchBuildings();
+      }
+    }
+
+    const matches = state.buildings.filter(b => {
+      const name = b.BUILDING_NAME || '';
+      const addr = b.ADDRESS_SIMPLE || '';
+      return name.toLowerCase().includes(val) || addr.toLowerCase().includes(val);
+    }).slice(0, 6);
 
     if (matches.length === 0) {
       suggestionsBox.style.display = 'none';
@@ -351,14 +405,15 @@ function setupBuildingAutocomplete(inputId, idHolderId, pageIdHolderId, suggesti
       const div = document.createElement('div');
       div.className = 'suggestion-item';
       
+      const name = building.BUILDING_NAME || '';
       const regex = new RegExp(`(${val})`, 'gi');
-      const highlighted = building.BUILDING_NAME.replace(regex, '<strong>$1</strong>');
-      div.innerHTML = `${highlighted} <span style="font-size: 0.75rem; color: var(--text-muted); float: right;">ID: ${building.BUILDING_ID}</span>`;
+      const highlighted = name.replace(regex, '<strong>$1</strong>');
+      div.innerHTML = `${highlighted} <span style="font-size: 0.75rem; color: var(--text-muted); float: right;">ID: ${building.BUILDING_ID || ''}</span>`;
       
       div.addEventListener('click', () => {
-        input.value = building.BUILDING_NAME;
-        idHolder.value = building.BUILDING_ID;
-        pageIdHolder.value = building.PAGEID;
+        input.value = name;
+        idHolder.value = building.BUILDING_ID || '';
+        pageIdHolder.value = building.PAGEID || '';
         suggestionsBox.style.display = 'none';
       });
       suggestionsBox.appendChild(div);
@@ -374,17 +429,28 @@ function setupBuildingAutocomplete(inputId, idHolderId, pageIdHolderId, suggesti
 
 // API: Fetch Buildings
 async function fetchBuildings() {
+  // Try to resolve from window.gBuildingData first
+  if (window.gBuildingData && window.gBuildingData.length > 0) {
+    state.buildings = window.gBuildingData;
+    console.log('Resolved buildings from window.gBuildingData:', state.buildings.length);
+    return;
+  }
+
   if (state.isMockMode) {
     state.buildings = getMockBuildings();
     return;
   }
 
   try {
+    // Sync tokens if they are empty in state
+    if (!state.sesstok) state.sesstok = window.__sesstok || '';
+    if (!state.pid) state.pid = window.__pid || '';
+
     const payload = {
       __sesstok: state.sesstok,
       action: 'getBuildingList',
       pid: state.pid,
-      iug: '0',
+      iug: window.__iug || '0',
       pageID: '-1'
     };
 
@@ -637,9 +703,28 @@ async function handleSingleSubmit(e) {
   const email = document.getElementById('email').value.trim();
   const visitorType = document.getElementById('visitorType').value;
   const buildingName = document.getElementById('buildingSearch').value.trim();
-  const buildingId = document.getElementById('buildingId').value;
-  const buildingPageId = document.getElementById('buildingPageId').value;
+  let buildingId = document.getElementById('buildingId').value;
+  let buildingPageId = document.getElementById('buildingPageId').value;
   
+  if (!buildingId || !buildingPageId) {
+    const match = state.buildings.find(b => (b.BUILDING_NAME || '').toLowerCase() === buildingName.toLowerCase());
+    if (match) {
+      buildingId = match.BUILDING_ID || '';
+      buildingPageId = match.PAGEID || '';
+      document.getElementById('buildingId').value = buildingId;
+      document.getElementById('buildingPageId').value = buildingPageId;
+    } else {
+      const matches = state.buildings.filter(b => (b.BUILDING_NAME || '').toLowerCase().includes(buildingName.toLowerCase()));
+      if (matches.length === 1) {
+        buildingId = matches[0].BUILDING_ID || '';
+        buildingPageId = matches[0].PAGEID || '';
+        document.getElementById('buildingSearch').value = matches[0].BUILDING_NAME || '';
+        document.getElementById('buildingId').value = buildingId;
+        document.getElementById('buildingPageId').value = buildingPageId;
+      }
+    }
+  }
+
   if (!buildingId || !buildingPageId) {
     showToast('Please select a valid NYU building from the suggestions', 'error');
     return;
@@ -701,13 +786,27 @@ async function handleBulkSubmit() {
   const pasteData = document.getElementById('bulkPaste').value.trim();
   const visitorType = document.getElementById('bulkVisitorType').value;
   const buildingName = document.getElementById('bulkBuildingSearch').value.trim();
-  const buildingId = document.getElementById('bulkBuildingId').value;
-  const buildingPageId = document.getElementById('bulkBuildingPageId').value;
+  let buildingId = document.getElementById('bulkBuildingId').value;
+  let buildingPageId = document.getElementById('bulkBuildingPageId').value;
   
-  const startDate = document.getElementById('bulkStartDate').value;
-  const startTime = document.getElementById('bulkStartTime').value;
-  const endDate = document.getElementById('bulkEndDate').value;
-  const endTime = document.getElementById('bulkEndTime').value;
+  if (!buildingId || !buildingPageId) {
+    const match = state.buildings.find(b => (b.BUILDING_NAME || '').toLowerCase() === buildingName.toLowerCase());
+    if (match) {
+      buildingId = match.BUILDING_ID || '';
+      buildingPageId = match.PAGEID || '';
+      document.getElementById('bulkBuildingId').value = buildingId;
+      document.getElementById('bulkBuildingPageId').value = buildingPageId;
+    } else {
+      const matches = state.buildings.filter(b => (b.BUILDING_NAME || '').toLowerCase().includes(buildingName.toLowerCase()));
+      if (matches.length === 1) {
+        buildingId = matches[0].BUILDING_ID || '';
+        buildingPageId = matches[0].PAGEID || '';
+        document.getElementById('bulkBuildingSearch').value = matches[0].BUILDING_NAME || '';
+        document.getElementById('bulkBuildingId').value = buildingId;
+        document.getElementById('bulkBuildingPageId').value = buildingPageId;
+      }
+    }
+  }
 
   if (!pasteData) {
     showToast('Please paste visitor details', 'error');
