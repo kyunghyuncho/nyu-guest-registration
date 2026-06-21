@@ -883,15 +883,28 @@ body.light-theme .modern-ui-container .visitor-card {
       renderQuickDupChips();
     }
 
-    function saveGuestToHistory(first, last, email) {
+    function saveGuestToHistory(first, last, email, buildingName = '', buildingId = '', buildingPageId = '') {
       const emailLower = email.toLowerCase().trim();
       const existing = state.history.find(h => h.email.toLowerCase().trim() === emailLower);
       if (existing) {
         existing.count = (existing.count || 1) + 1;
         existing.first = first;
         existing.last = last;
+        if (buildingName) {
+          existing.buildingName = buildingName;
+          existing.buildingId = buildingId;
+          existing.buildingPageId = buildingPageId;
+        }
       } else {
-        state.history.push({ first: first.trim(), last: last.trim(), email: emailLower, count: 1 });
+        state.history.push({
+          first: first.trim(),
+          last: last.trim(),
+          email: emailLower,
+          buildingName: buildingName || '',
+          buildingId: buildingId || '',
+          buildingPageId: buildingPageId || '',
+          count: 1
+        });
       }
       state.history.sort((a, b) => b.count - a.count);
       if (state.history.length > 20) state.history = state.history.slice(0, 20);
@@ -956,6 +969,18 @@ body.light-theme .modern-ui-container .visitor-card {
               if (guestObj) {
                 document.getElementById('first').value = guestObj.first;
                 document.getElementById('last').value = guestObj.last;
+                
+                // Auto-fill building if present in history
+                if (guestObj.buildingName) {
+                  const bInput = document.getElementById('buildingSearch');
+                  const bId = document.getElementById('buildingId');
+                  const bPageId = document.getElementById('buildingPageId');
+                  if (bInput && bId && bPageId) {
+                    bInput.value = guestObj.buildingName;
+                    bId.value = guestObj.buildingId;
+                    bPageId.value = guestObj.buildingPageId;
+                  }
+                }
               }
             }
           });
@@ -1035,41 +1060,71 @@ body.light-theme .modern-ui-container .visitor-card {
     async function syncVisitors(showNotification = false) {
       try {
         const visitors = [];
-        // Scrape records from the hidden original Identigy DOM
-        const hiddenArea = document.getElementById('original-identigy-content');
-        if (hiddenArea) {
-          const rows = hiddenArea.querySelectorAll('.visitorRow, tr[id^="visitor_"], .card:not(.edit):not(.loading)');
-          rows.forEach(row => {
-            const nameCell = row.querySelector('.visitorName, td:nth-child(2), h3, .name');
-            const emailCell = row.querySelector('.visitorEmail, td:nth-child(3), .email');
-            const buildingCell = row.querySelector('.visitorBuilding, td:nth-child(4), .building');
-            const startCell = row.querySelector('.visitorStart, td:nth-child(5), .start, .arrival');
-            const endCell = row.querySelector('.visitorEnd, td:nth-child(6), .end, .departure');
-
-            let visitid = row.getAttribute('data-visitid') || row.id.replace('visitor_', '');
-            if (!visitid || visitid === row.id) {
-              const actionBtn = row.querySelector('[onclick*="Checkout"], [onclick*="Unregister"], [data-visitid]');
-              if (actionBtn) {
-                visitid = actionBtn.getAttribute('data-visitid') || actionBtn.getAttribute('onclick').match(/\d+/)?.[0] || '';
-              }
-            }
-
-            if (nameCell && nameCell.textContent.trim()) {
-              const fullName = nameCell.textContent.trim();
-              const nameParts = fullName.split(/\s+/);
-              visitors.push({
-                visitid: visitid || Math.random().toString(36).substring(7),
-                first: nameParts[0] || '',
-                last: nameParts.slice(1).join(' ') || '',
-                email: emailCell ? emailCell.textContent.trim() : '',
-                buildingName: buildingCell ? buildingCell.textContent.trim() : 'NYU Building',
-                entryDateStr: startCell ? startCell.textContent.trim() : 'Active',
-                exitDateStr: endCell ? endCell.textContent.trim() : 'Active',
-                status: 'Registered'
-              });
-            }
+        
+        // Strategy A: Direct read from window.__visitors (if available)
+        const globalVisitors = window.__visitors || (window.unsafeWindow && window.unsafeWindow.__visitors);
+        if (globalVisitors && Array.isArray(globalVisitors.expected)) {
+          globalVisitors.expected.forEach(v => {
+            // Find email and building from our local history to enrich the UI if possible
+            const historyMatch = state.history.find(h => 
+              h.first.toLowerCase() === v.FIRSTNAME.toLowerCase() && 
+              h.last.toLowerCase() === v.LASTNAME.toLowerCase()
+            );
+            
+            visitors.push({
+              visitid: v.VISITID || Math.random().toString(36).substring(7),
+              first: v.FIRSTNAME || '',
+              last: v.LASTNAME || '',
+              email: historyMatch ? historyMatch.email : '',
+              buildingName: historyMatch ? historyMatch.buildingName : 'NYU Building',
+              entryDateStr: v.ENTRY_DATE || 'Active',
+              exitDateStr: v.EXIT_DATE || 'Active',
+              status: 'Registered'
+            });
           });
         }
+        // Strategy B: Fallback to DOM scraping (completely safe from null pointer exceptions)
+        else {
+          const hiddenArea = document.getElementById('original-identigy-content');
+          if (hiddenArea) {
+            const rows = hiddenArea.querySelectorAll('.visitorRow, tr[id^="visitor_"], .card:not(.edit):not(.loading)');
+            rows.forEach(row => {
+              const nameCell = row.querySelector('.visitorName, td:nth-child(2), h3, .name');
+              const emailCell = row.querySelector('.visitorEmail, td:nth-child(3), .email');
+              const buildingCell = row.querySelector('.visitorBuilding, td:nth-child(4), .building');
+              const startCell = row.querySelector('.visitorStart, td:nth-child(5), .start, .arrival, .entry');
+              const endCell = row.querySelector('.visitorEnd, td:nth-child(6), .end, .departure, .exit');
+
+              let visitid = row.getAttribute('data-visitid') || (row.id ? row.id.replace('visitor_', '') : '');
+              if (!visitid || visitid === row.id) {
+                const actionBtn = row.querySelector('[onclick*="Checkout"], [onclick*="Unregister"], [data-visitid], button, a');
+                if (actionBtn) {
+                  const dataVisitId = actionBtn.getAttribute('data-visitid');
+                  const onclickVal = actionBtn.getAttribute('onclick');
+                  visitid = dataVisitId || 
+                            (onclickVal ? (onclickVal.match(/\d+/)?.[0] || '') : '') || 
+                            '';
+                }
+              }
+
+              if (nameCell && nameCell.textContent && nameCell.textContent.trim()) {
+                const fullName = nameCell.textContent.trim();
+                const nameParts = fullName.split(/\s+/);
+                visitors.push({
+                  visitid: visitid || Math.random().toString(36).substring(7),
+                  first: nameParts[0] || '',
+                  last: nameParts.slice(1).join(' ') || '',
+                  email: (emailCell && emailCell.textContent) ? emailCell.textContent.trim() : '',
+                  buildingName: (buildingCell && buildingCell.textContent) ? buildingCell.textContent.trim() : 'NYU Building',
+                  entryDateStr: (startCell && startCell.textContent) ? startCell.textContent.trim() : 'Active',
+                  exitDateStr: (endCell && endCell.textContent) ? endCell.textContent.trim() : 'Active',
+                  status: 'Registered'
+                });
+              }
+            });
+          }
+        }
+
         state.registeredVisitors = visitors;
         renderVisitorList();
         if (showNotification) showToast(`Synced ${state.registeredVisitors.length} visitors from portal`, 'success');
@@ -1211,7 +1266,7 @@ body.light-theme .modern-ui-container .visitor-card {
       const res = await registerGuest(payload);
       if (res.success) {
         showToast(`Preregistered ${first} ${last}!`, 'success');
-        saveGuestToHistory(first, last, email);
+        saveGuestToHistory(first, last, email, buildingName, buildingId, buildingPageId);
         document.getElementById('first').value = '';
         document.getElementById('last').value = '';
         document.getElementById('email').value = '';
@@ -1298,7 +1353,7 @@ body.light-theme .modern-ui-container .visitor-card {
         if (res.success) {
           statusSpan.className = 'queue-status status-success';
           statusSpan.innerHTML = '✓ Success';
-          saveGuestToHistory(item.first, item.last, item.email);
+          saveGuestToHistory(item.first, item.last, item.email, buildingName, buildingId, buildingPageId);
         } else {
           statusSpan.className = 'queue-status status-failed';
           statusSpan.innerHTML = `✗ Failed: ${res.error || 'Server error'}`;

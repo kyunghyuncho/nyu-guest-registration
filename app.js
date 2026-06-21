@@ -125,7 +125,7 @@ function loadLocalStorageData() {
 }
 
 // Save registered guest to local cache history for autocompletion
-function saveGuestToHistory(first, last, email) {
+function saveGuestToHistory(first, last, email, buildingName = '', buildingId = '', buildingPageId = '') {
   const emailLower = email.toLowerCase().trim();
   const existing = state.history.find(h => h.email.toLowerCase().trim() === emailLower);
   
@@ -133,11 +133,19 @@ function saveGuestToHistory(first, last, email) {
     existing.count = (existing.count || 1) + 1;
     existing.first = first;
     existing.last = last;
+    if (buildingName) {
+      existing.buildingName = buildingName;
+      existing.buildingId = buildingId;
+      existing.buildingPageId = buildingPageId;
+    }
   } else {
     state.history.push({
       first: first.trim(),
       last: last.trim(),
       email: emailLower,
+      buildingName: buildingName || '',
+      buildingId: buildingId || '',
+      buildingPageId: buildingPageId || '',
       count: 1
     });
   }
@@ -285,6 +293,18 @@ function setupInputAutocomplete(inputId, suggestionsId, fieldKey) {
           if (guestObj) {
             document.getElementById('first').value = guestObj.first;
             document.getElementById('last').value = guestObj.last;
+            
+            // Auto-fill building if present in history record
+            if (guestObj.buildingName) {
+              const bInput = document.getElementById('buildingSearch');
+              const bId = document.getElementById('buildingId');
+              const bPageId = document.getElementById('buildingPageId');
+              if (bInput && bId && bPageId) {
+                bInput.value = guestObj.buildingName;
+                bId.value = guestObj.buildingId;
+                bPageId.value = guestObj.buildingPageId;
+              }
+            }
           }
         }
       });
@@ -662,7 +682,7 @@ async function handleSingleSubmit(e) {
   
   if (res.success) {
     showToast(`Registered ${first} ${last} successfully!`, 'success');
-    saveGuestToHistory(first, last, email);
+    saveGuestToHistory(first, last, email, buildingName, buildingId, buildingPageId);
     
     // Clear form except building & date preferences
     document.getElementById('first').value = '';
@@ -761,7 +781,7 @@ async function handleBulkSubmit() {
     if (res.success) {
       statusSpan.className = 'queue-status status-success';
       statusSpan.innerHTML = '✓ Success';
-      saveGuestToHistory(item.first, item.last, item.email);
+      saveGuestToHistory(item.first, item.last, item.email, buildingName, buildingId, buildingPageId);
     } else {
       statusSpan.className = 'queue-status status-failed';
       statusSpan.innerHTML = `✗ Failed: ${res.error || 'Server error'}`;
