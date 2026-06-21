@@ -73,99 +73,105 @@ body {
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
+.modern-container {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
 }
 
 /* Glassmorphism Panel */
-.panel {
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  padding: 2.5rem;
-  box-shadow: var(--shadow-lg);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  margin-bottom: 2rem;
+.modern-panel {
+  background: var(--panel-bg) !important;
+  border: 1px solid var(--panel-border) !important;
+  border-radius: var(--radius-lg) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  padding: 2.5rem !important;
+  box-shadow: var(--shadow-lg) !important;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
+  margin-bottom: 2rem !important;
 }
 
-.panel:hover {
-  border-color: var(--panel-border-hover);
+.modern-panel:hover {
+  border-color: var(--panel-border-hover) !important;
 }
 
 /* Header Styles */
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2.5rem;
-  border-bottom: 1px solid var(--panel-border);
-  padding-bottom: 1.5rem;
+.modern-header {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 2.5rem !important;
+  border-bottom: 1px solid var(--panel-border) !important;
+  padding-bottom: 1.5rem !important;
+  width: 100% !important;
 }
 
-.brand-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.modern-brand-section {
+  display: flex !important;
+  align-items: center !important;
+  gap: 1rem !important;
 }
 
-.logo-icon {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent-nyu) 100%);
-  width: 46px;
-  height: 46px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 1.4rem;
-  box-shadow: 0 4px 12px var(--primary-glow);
+.modern-logo-icon {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent-nyu) 100%) !important;
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: var(--radius-md) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 1.4rem !important;
+  box-shadow: 0 4px 12px var(--primary-glow) !important;
 }
 
-.brand-title h1 {
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  background: linear-gradient(90deg, var(--text-primary) 30%, var(--primary-hover) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.modern-brand-title h1 {
+  font-size: 1.6rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.5px !important;
+  background: linear-gradient(90deg, var(--text-primary) 30%, var(--primary-hover) 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
 }
 
-.brand-title p {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-weight: 400;
+.modern-brand-title p {
+  font-size: 0.85rem !important;
+  color: var(--text-muted) !important;
+  font-weight: 400 !important;
 }
 
-.controls {
-  display: flex;
-  gap: 0.75rem;
+.modern-controls {
+  display: flex !important;
+  gap: 0.75rem !important;
 }
 
 /* Dashboard Layout */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 2rem;
+.modern-dashboard-grid {
+  display: grid !important;
+  grid-template-columns: 1.1fr 0.9fr !important;
+  gap: 2rem !important;
+  width: 100% !important;
 }
 
 @media (max-width: 900px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
+  .modern-dashboard-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 
 .section-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 1.5rem !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
 }
 
 /* Form Styling */

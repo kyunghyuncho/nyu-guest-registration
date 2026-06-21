@@ -90,96 +90,102 @@ body.light-theme {
   position: relative;
 }
 
-.modern-ui-container .container {
-  max-width: 1200px;
-  margin: 0 auto;
+.modern-ui-container .modern-container {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
 }
 
-.modern-ui-container .panel {
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  padding: 2.5rem;
-  box-shadow: var(--shadow-lg);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  margin-bottom: 2rem;
+.modern-ui-container .modern-panel {
+  background: var(--panel-bg) !important;
+  border: 1px solid var(--panel-border) !important;
+  border-radius: var(--radius-lg) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  padding: 2.5rem !important;
+  box-shadow: var(--shadow-lg) !important;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
+  margin-bottom: 2rem !important;
 }
 
-.modern-ui-container .panel:hover {
-  border-color: var(--panel-border-hover);
+.modern-ui-container .modern-panel:hover {
+  border-color: var(--panel-border-hover) !important;
 }
 
-.modern-ui-container header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2.5rem;
-  border-bottom: 1px solid var(--panel-border);
-  padding-bottom: 1.5rem;
+.modern-ui-container .modern-header {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 2.5rem !important;
+  border-bottom: 1px solid var(--panel-border) !important;
+  padding-bottom: 1.5rem !important;
+  width: 100% !important;
 }
 
-.modern-ui-container .brand-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.modern-ui-container .modern-brand-section {
+  display: flex !important;
+  align-items: center !important;
+  gap: 1rem !important;
 }
 
-.modern-ui-container .logo-icon {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent-nyu) 100%);
-  width: 46px;
-  height: 46px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 1.4rem;
-  box-shadow: 0 4px 12px var(--primary-glow);
+.modern-ui-container .modern-logo-icon {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent-nyu) 100%) !important;
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: var(--radius-md) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 1.4rem !important;
+  box-shadow: 0 4px 12px var(--primary-glow) !important;
 }
 
-.modern-ui-container .brand-title h1 {
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  background: linear-gradient(90deg, var(--text-primary) 30%, var(--primary-hover) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.modern-ui-container .modern-brand-title h1 {
+  font-size: 1.6rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.5px !important;
+  background: linear-gradient(90deg, var(--text-primary) 30%, var(--primary-hover) 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
 }
 
-.modern-ui-container .brand-title p {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-weight: 400;
+.modern-ui-container .modern-brand-title p {
+  font-size: 0.85rem !important;
+  color: var(--text-muted) !important;
+  font-weight: 400 !important;
 }
 
-.modern-ui-container .controls {
-  display: flex;
-  gap: 0.75rem;
+.modern-ui-container .modern-controls {
+  display: flex !important;
+  gap: 0.75rem !important;
 }
 
-.modern-ui-container .dashboard-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 2rem;
+.modern-ui-container .modern-dashboard-grid {
+  display: grid !important;
+  grid-template-columns: 1.1fr 0.9fr !important;
+  gap: 2rem !important;
+  width: 100% !important;
 }
 
 @media (max-width: 900px) {
-  .modern-ui-container .dashboard-grid {
-    grid-template-columns: 1fr;
+  .modern-ui-container .modern-dashboard-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 
 .modern-ui-container .section-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 1.5rem !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
 }
 
 .modern-ui-container .form-group {
@@ -557,16 +563,16 @@ body.light-theme .modern-ui-container .visitor-card {
   // --- EMBEDDED MARKUP (index.html body) ---
   const htmlTemplate = `
   <div class="modern-ui-container">
-    <div class="container">
-      <header>
-        <div class="brand-section">
-          <div class="logo-icon">NYU</div>
-          <div class="brand-title">
+    <div class="modern-container">
+      <header class="modern-header">
+        <div class="modern-brand-section">
+          <div class="modern-logo-icon">NYU</div>
+          <div class="modern-brand-title">
             <h1>Visitor Registration</h1>
             <p>Glen de Vries Portal Wrapper</p>
           </div>
         </div>
-        <div class="controls">
+        <div class="modern-controls">
           <button id="themeToggle" class="btn btn-secondary btn-icon" title="Toggle Dark/Light Mode">
             <svg id="moonIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
             <svg id="sunIcon" style="display:none;" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
@@ -578,9 +584,9 @@ body.light-theme .modern-ui-container .visitor-card {
         </div>
       </header>
 
-      <div class="dashboard-grid">
+      <div class="modern-dashboard-grid">
         <div>
-          <div class="panel">
+          <div class="modern-panel">
             <div class="tabs">
               <button class="tab-btn active" data-tab="single">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
@@ -729,7 +735,7 @@ body.light-theme .modern-ui-container .visitor-card {
         </div>
 
         <div>
-          <div class="panel" style="height: calc(100% - 2rem); display: flex; flex-direction: column;">
+          <div class="modern-panel" style="height: calc(100% - 2rem); display: flex; flex-direction: column;">
             <div class="section-title">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               Registered Visitors
