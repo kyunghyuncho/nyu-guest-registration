@@ -1029,7 +1029,41 @@ body.light-theme .modern-ui-container .visitor-card {
       const pageIdHolder = document.getElementById(pageIdHolderId);
       const suggestionsBox = document.getElementById(suggestionsId);
 
+      // Helper: resolve building from typed text (exact or unique substring match)
+      function tryResolveBuilding() {
+        const val = input.value.trim().toLowerCase();
+        if (!val || idHolder.value) return; // Already resolved or empty
+
+        // Ensure buildings are loaded
+        if (state.buildings.length === 0 && window.gBuildingData && window.gBuildingData.length > 0) {
+          state.buildings = window.gBuildingData;
+        }
+
+        // Try exact match first
+        const exact = state.buildings.find(b => (b.BUILDING_NAME || '').toLowerCase() === val);
+        if (exact) {
+          input.value = exact.BUILDING_NAME || '';
+          idHolder.value = exact.BUILDING_ID || '';
+          pageIdHolder.value = exact.PAGEID || '';
+          console.log(`[Building] Auto-resolved exact match: ${exact.BUILDING_NAME}`);
+          return;
+        }
+
+        // Try unique substring match
+        const partials = state.buildings.filter(b => (b.BUILDING_NAME || '').toLowerCase().includes(val));
+        if (partials.length === 1) {
+          input.value = partials[0].BUILDING_NAME || '';
+          idHolder.value = partials[0].BUILDING_ID || '';
+          pageIdHolder.value = partials[0].PAGEID || '';
+          console.log(`[Building] Auto-resolved unique partial match: ${partials[0].BUILDING_NAME}`);
+        }
+      }
+
+      // Clear hidden fields when user edits the input (forces re-resolution)
       input.addEventListener('input', () => {
+        idHolder.value = '';
+        pageIdHolder.value = '';
+
         const val = input.value.trim().toLowerCase();
         if (val.length < 2) {
           suggestionsBox.style.display = 'none';
@@ -1061,20 +1095,37 @@ body.light-theme .modern-ui-container .visitor-card {
           const div = document.createElement('div');
           div.className = 'suggestion-item';
           const name = building.BUILDING_NAME || '';
-          const regex = new RegExp(`(${val})`, 'gi');
+          const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(${escapedVal})`, 'gi');
           const highlighted = name.replace(regex, '<strong>$1</strong>');
           div.innerHTML = `${highlighted} <span style="font-size: 0.75rem; color: var(--text-muted); float: right;">ID: ${building.BUILDING_ID || ''}</span>`;
-          div.addEventListener('click', () => {
+          // Use mousedown so it fires BEFORE blur hides the suggestions
+          div.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent blur from firing first
             input.value = name;
             idHolder.value = building.BUILDING_ID || '';
             pageIdHolder.value = building.PAGEID || '';
             suggestionsBox.style.display = 'none';
+            console.log(`[Building] Selected from dropdown: ${name} (ID: ${building.BUILDING_ID})`);
           });
           suggestionsBox.appendChild(div);
         });
       });
+
+      // Auto-resolve on blur (when user tabs away or clicks elsewhere)
+      input.addEventListener('blur', () => {
+        // Small delay to allow mousedown on suggestion to fire first
+        setTimeout(() => {
+          suggestionsBox.style.display = 'none';
+          tryResolveBuilding();
+        }, 200);
+      });
+
+      // Dismiss suggestions when clicking outside (use contains for child elements)
       document.addEventListener('click', (e) => {
-        if (e.target !== input && e.target !== suggestionsBox) suggestionsBox.style.display = 'none';
+        if (!input.contains(e.target) && !suggestionsBox.contains(e.target)) {
+          suggestionsBox.style.display = 'none';
+        }
       });
     }
 
@@ -1360,21 +1411,54 @@ body.light-theme .modern-ui-container .visitor-card {
       let buildingId = document.getElementById('bulkBuildingId').value;
       let buildingPageId = document.getElementById('bulkBuildingPageId').value;
 
-      if (!buildingId || !buildingPageId) {
-        const match = state.buildings.find(b => (b.BUILDING_NAME || '').toLowerCase() === buildingName.toLowerCase());
-        if (match) {
-          buildingId = match.BUILDING_ID || '';
-          buildingPageId = match.PAGEID || '';
+      // Ensure building data is loaded
+      if (state.buildings.length === 0) {
+        if (window.gBuildingData && window.gBuildingData.length > 0) {
+          state.buildings = window.gBuildingData;
+          console.log('[Bulk] Loaded buildings from window.gBuildingData:', state.buildings.length);
+        } else {
+          console.log('[Bulk] Fetching buildings from API...');
+          await fetchBuildings();
+        }
+      }
+
+      // If hidden fields are not set, try to resolve from the typed building name
+      if ((!buildingId || !buildingPageId) && buildingName) {
+        console.log(`[Bulk] Resolving building "${buildingName}" from ${state.buildings.length} known buildings`);
+
+        // Try exact match (case-insensitive)
+        const exact = state.buildings.find(b => (b.BUILDING_NAME || '').toLowerCase() === buildingName.toLowerCase());
+        if (exact) {
+          buildingId = exact.BUILDING_ID || '';
+          buildingPageId = exact.PAGEID || '';
           document.getElementById('bulkBuildingId').value = buildingId;
           document.getElementById('bulkBuildingPageId').value = buildingPageId;
+          console.log(`[Bulk] Exact match: ${exact.BUILDING_NAME}`);
         } else {
-          const matches = state.buildings.filter(b => (b.BUILDING_NAME || '').toLowerCase().includes(buildingName.toLowerCase()));
-          if (matches.length === 1) {
-            buildingId = matches[0].BUILDING_ID || '';
-            buildingPageId = matches[0].PAGEID || '';
-            document.getElementById('bulkBuildingSearch').value = matches[0].BUILDING_NAME || '';
+          // Try unique substring match
+          const partials = state.buildings.filter(b => (b.BUILDING_NAME || '').toLowerCase().includes(buildingName.toLowerCase()));
+          if (partials.length === 1) {
+            buildingId = partials[0].BUILDING_ID || '';
+            buildingPageId = partials[0].PAGEID || '';
+            document.getElementById('bulkBuildingSearch').value = partials[0].BUILDING_NAME || '';
             document.getElementById('bulkBuildingId').value = buildingId;
             document.getElementById('bulkBuildingPageId').value = buildingPageId;
+            console.log(`[Bulk] Unique partial match: ${partials[0].BUILDING_NAME}`);
+          } else if (partials.length > 1) {
+            // Try starts-with match for better disambiguation
+            const startsWith = partials.filter(b => (b.BUILDING_NAME || '').toLowerCase().startsWith(buildingName.toLowerCase()));
+            if (startsWith.length === 1) {
+              buildingId = startsWith[0].BUILDING_ID || '';
+              buildingPageId = startsWith[0].PAGEID || '';
+              document.getElementById('bulkBuildingSearch').value = startsWith[0].BUILDING_NAME || '';
+              document.getElementById('bulkBuildingId').value = buildingId;
+              document.getElementById('bulkBuildingPageId').value = buildingPageId;
+              console.log(`[Bulk] Starts-with match: ${startsWith[0].BUILDING_NAME}`);
+            } else {
+              console.log(`[Bulk] Ambiguous: ${partials.length} buildings match "${buildingName}"`);
+            }
+          } else {
+            console.log(`[Bulk] No buildings match "${buildingName}" (${state.buildings.length} buildings loaded)`);
           }
         }
       }
@@ -1385,7 +1469,12 @@ body.light-theme .modern-ui-container .visitor-card {
       }
 
       if (!buildingId || !buildingPageId) {
-        showToast('Select an NYU building from suggestion box', 'error');
+        const msg = state.buildings.length === 0
+          ? 'Building list failed to load. Please reload the page and try again.'
+          : buildingName
+            ? `Could not match "${buildingName}" — please select from the dropdown suggestions`
+            : 'Please type and select an NYU building';
+        showToast(msg, 'error');
         return;
       }
 
