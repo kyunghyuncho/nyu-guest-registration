@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYU Modern Guest Registration
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  A modern, high-fidelity front-end overlay for the NYU visitor registration page.
 // @author       Kyunghyun Cho (Glen de Vries Professor)
 // @match        https://nyu.identigy.io/patron/VisitorManagement/VisitorsHost.php*
@@ -11,7 +11,7 @@
 
 (function() {
   'use strict';
-  const SCRIPT_VERSION = '1.2';
+  const SCRIPT_VERSION = '1.3';
   console.log(`[NYU-ModernReg] v${SCRIPT_VERSION} loaded`);
 
   // --- EMBEDDED STYLESHEET (style.css) ---
@@ -1031,8 +1031,7 @@ body.light-theme .modern-ui-container .visitor-card {
       const pageIdHolder = document.getElementById(pageIdHolderId);
       const suggestionsBox = document.getElementById(suggestionsId);
 
-      // Helper: resolve building from typed text (exact or unique substring match)
-      // Searches both BUILDING_NAME and ADDRESS_SIMPLE fields
+      // Helper: resolve building from typed text (searches ALL string fields)
       function tryResolveBuilding() {
         const val = input.value.trim().toLowerCase();
         if (!val || idHolder.value) return; // Already resolved or empty
@@ -1042,35 +1041,38 @@ body.light-theme .modern-ui-container .visitor-card {
           state.buildings = window.gBuildingData;
         }
 
-        // Helper: check if a building matches the search value
-        const matchesBldg = (b, searchVal) => {
-          const name = (b.BUILDING_NAME || '').toLowerCase();
-          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-          return name.includes(searchVal) || addr.includes(searchVal);
-        };
-        const exactMatchBldg = (b, searchVal) => {
-          const name = (b.BUILDING_NAME || '').toLowerCase();
-          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-          return name === searchVal || addr === searchVal;
+        // Search all string values in a building object
+        const anyFieldMatch = (b, sv, exact) => {
+          for (const key of Object.keys(b)) {
+            const v = b[key];
+            if (typeof v === 'string') {
+              if (exact ? v.toLowerCase() === sv : v.toLowerCase().includes(sv)) return true;
+            }
+          }
+          return false;
         };
 
-        // Try exact match first (name or address)
-        const exact = state.buildings.find(b => exactMatchBldg(b, val));
+        const resolveFromEntry = (b, label) => {
+          const displayName = b.BUILDING_NAME || b.building_name || b.BuildingName || b.name || input.value;
+          input.value = displayName;
+          idHolder.value = b.BUILDING_ID || b.building_id || b.BuildingID || b.buildingId || b.id || '';
+          pageIdHolder.value = b.PAGEID || b.pageId || b.PageID || b.pageid || '';
+          console.log(`[Building] ${label}:`, JSON.stringify(b));
+        };
+
+        // Try exact match first (any string field)
+        const exact = state.buildings.find(b => anyFieldMatch(b, val, true));
         if (exact) {
-          input.value = exact.BUILDING_NAME || '';
-          idHolder.value = exact.BUILDING_ID || '';
-          pageIdHolder.value = exact.PAGEID || '';
-          console.log(`[Building] Auto-resolved exact match: ${exact.BUILDING_NAME}`);
+          resolveFromEntry(exact, 'Auto-resolved exact');
           return;
         }
 
-        // Try unique substring match (name or address)
-        const partials = state.buildings.filter(b => matchesBldg(b, val));
+        // Try unique substring match (any string field)
+        const partials = state.buildings.filter(b => anyFieldMatch(b, val, false));
         if (partials.length === 1) {
-          input.value = partials[0].BUILDING_NAME || '';
-          idHolder.value = partials[0].BUILDING_ID || '';
-          pageIdHolder.value = partials[0].PAGEID || '';
-          console.log(`[Building] Auto-resolved unique partial match: ${partials[0].BUILDING_NAME}`);
+          resolveFromEntry(partials[0], 'Auto-resolved unique partial');
+        } else if (partials.length > 1) {
+          resolveFromEntry(partials[0], `Auto-resolved best of ${partials.length}`);
         }
       }
 
@@ -1095,9 +1097,12 @@ body.light-theme .modern-ui-container .visitor-card {
         }
 
         const matches = state.buildings.filter(b => {
-          const name = b.BUILDING_NAME || '';
-          const addr = b.ADDRESS_SIMPLE || '';
-          return name.toLowerCase().includes(val) || addr.toLowerCase().includes(val);
+          // Search all string values in the building object
+          for (const key of Object.keys(b)) {
+            const v = b[key];
+            if (typeof v === 'string' && v.toLowerCase().includes(val)) return true;
+          }
+          return false;
         }).slice(0, 6);
 
         if (matches.length === 0) {
@@ -1109,19 +1114,24 @@ body.light-theme .modern-ui-container .visitor-card {
         matches.forEach(building => {
           const div = document.createElement('div');
           div.className = 'suggestion-item';
-          const name = building.BUILDING_NAME || '';
+          const name = building.BUILDING_NAME || building.building_name || building.BuildingName || building.name || '';
+          const bldgId = building.BUILDING_ID || building.building_id || building.BuildingID || building.id || '';
+          const pageId = building.PAGEID || building.pageId || building.PageID || building.pageid || '';
+          const addr = building.ADDRESS_SIMPLE || building.address || '';
           const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const regex = new RegExp(`(${escapedVal})`, 'gi');
-          const highlighted = name.replace(regex, '<strong>$1</strong>');
-          div.innerHTML = `${highlighted} <span style="font-size: 0.75rem; color: var(--text-muted); float: right;">ID: ${building.BUILDING_ID || ''}</span>`;
+          const displayText = name || addr || JSON.stringify(building).substring(0, 60);
+          const highlighted = displayText.replace(regex, '<strong>$1</strong>');
+          const secondaryInfo = name ? (addr ? addr : `ID: ${bldgId}`) : `ID: ${bldgId}`;
+          div.innerHTML = `${highlighted} <span style="font-size: 0.75rem; color: var(--text-muted); float: right;">${secondaryInfo}</span>`;
           // Use mousedown so it fires BEFORE blur hides the suggestions
           div.addEventListener('mousedown', (e) => {
             e.preventDefault(); // Prevent blur from firing first
-            input.value = name;
-            idHolder.value = building.BUILDING_ID || '';
-            pageIdHolder.value = building.PAGEID || '';
+            input.value = name || addr;
+            idHolder.value = bldgId;
+            pageIdHolder.value = pageId;
             suggestionsBox.style.display = 'none';
-            console.log(`[Building] Selected from dropdown: ${name} (ID: ${building.BUILDING_ID})`);
+            console.log(`[Building] Selected from dropdown: ${name} (ID: ${bldgId}, PageID: ${pageId})`);
           });
           suggestionsBox.appendChild(div);
         });
@@ -1459,51 +1469,60 @@ body.light-theme .modern-ui-container .visitor-card {
       // If hidden fields are not set, try to resolve from the typed building name
       if ((!buildingId || !buildingPageId) && buildingName) {
         console.log(`[Bulk] Resolving building "${buildingName}" from ${state.buildings.length} known buildings`);
+        if (state.buildings.length > 0) {
+          console.log('[Bulk] Sample building keys:', Object.keys(state.buildings[0]));
+          console.log('[Bulk] Sample building:', JSON.stringify(state.buildings[0]));
+        }
 
         const searchVal = buildingName.toLowerCase();
 
-        // Helper: match against both BUILDING_NAME and ADDRESS_SIMPLE
-        const matchesBldg = (b, sv) => {
-          const name = (b.BUILDING_NAME || '').toLowerCase();
-          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-          return name.includes(sv) || addr.includes(sv);
-        };
-        const exactMatchBldg = (b, sv) => {
-          const name = (b.BUILDING_NAME || '').toLowerCase();
-          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-          return name === sv || addr === sv;
+        // Search ALL string values of each building object (field-name agnostic)
+        const allStringValsMatch = (b, sv, exact) => {
+          for (const key of Object.keys(b)) {
+            const v = b[key];
+            if (typeof v === 'string') {
+              if (exact ? v.toLowerCase() === sv : v.toLowerCase().includes(sv)) return true;
+            }
+          }
+          return false;
         };
 
         // Resolve helper: populate hidden fields from a matched building
         const resolveBldg = (b, label) => {
-          buildingId = b.BUILDING_ID || '';
-          buildingPageId = b.PAGEID || '';
-          document.getElementById('bulkBuildingSearch').value = b.BUILDING_NAME || '';
+          // Try common ID field names
+          buildingId = b.BUILDING_ID || b.building_id || b.BuildingID || b.buildingId || b.id || '';
+          buildingPageId = b.PAGEID || b.pageId || b.PageID || b.pageid || '';
+          const displayName = b.BUILDING_NAME || b.building_name || b.BuildingName || b.name || buildingName;
+          document.getElementById('bulkBuildingSearch').value = displayName;
           document.getElementById('bulkBuildingId').value = buildingId;
           document.getElementById('bulkBuildingPageId').value = buildingPageId;
-          console.log(`[Bulk] ${label}: ${b.BUILDING_NAME} (addr: ${b.ADDRESS_SIMPLE || 'n/a'})`);
+          console.log(`[Bulk] ${label}:`, JSON.stringify(b));
+          console.log(`[Bulk] Resolved buildingId=${buildingId}, pageId=${buildingPageId}`);
         };
 
-        // Try exact match (name or address, case-insensitive)
-        const exact = state.buildings.find(b => exactMatchBldg(b, searchVal));
+        // Try exact match (any string field)
+        const exact = state.buildings.find(b => allStringValsMatch(b, searchVal, true));
         if (exact) {
           resolveBldg(exact, 'Exact match');
         } else {
-          // Try unique substring match (name or address)
-          const partials = state.buildings.filter(b => matchesBldg(b, searchVal));
+          // Try unique substring match (any string field)
+          const partials = state.buildings.filter(b => allStringValsMatch(b, searchVal, false));
           if (partials.length === 1) {
             resolveBldg(partials[0], 'Unique partial match');
           } else if (partials.length > 1) {
             // Try starts-with match for better disambiguation
             const startsWith = partials.filter(b => {
-              const name = (b.BUILDING_NAME || '').toLowerCase();
-              const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-              return name.startsWith(searchVal) || addr.startsWith(searchVal);
+              for (const key of Object.keys(b)) {
+                const v = b[key];
+                if (typeof v === 'string' && v.toLowerCase().startsWith(searchVal)) return true;
+              }
+              return false;
             });
             if (startsWith.length === 1) {
               resolveBldg(startsWith[0], 'Starts-with match');
             } else {
-              console.log(`[Bulk] Ambiguous: ${partials.length} buildings match "${buildingName}"`);
+              // Pick first partial match as best effort
+              resolveBldg(partials[0], `Best of ${partials.length} matches`);
             }
           } else {
             console.log(`[Bulk] No buildings match "${buildingName}" (${state.buildings.length} buildings loaded)`);
@@ -1517,11 +1536,15 @@ body.light-theme .modern-ui-container .visitor-card {
       }
 
       if (!buildingId || !buildingPageId) {
+        // Include diagnostic info in error message
+        const keys = state.buildings.length > 0 ? Object.keys(state.buildings[0]).join(', ') : 'n/a';
+        console.error(`[Bulk] Building resolution failed. buildings=${state.buildings.length}, keys=[${keys}], search="${buildingName}", buildingId="${buildingId}", pageId="${buildingPageId}"`);
+        if (state.buildings.length > 0) {
+          console.error('[Bulk] First building entry:', JSON.stringify(state.buildings[0]));
+        }
         const msg = state.buildings.length === 0
           ? 'Building list failed to load. Please reload the page and try again.'
-          : buildingName
-            ? `Could not match "${buildingName}" — please select from the dropdown suggestions`
-            : 'Please type and select an NYU building';
+          : `Building match failed (${state.buildings.length} loaded, fields: ${keys}). Check console for details.`;
         showToast(msg, 'error');
         return;
       }
