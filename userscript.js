@@ -210,35 +210,38 @@ body.light-theme {
 .modern-ui-container input, 
 .modern-ui-container select, 
 .modern-ui-container textarea {
-  width: 100%;
-  padding: 0.85rem 1rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  outline: none;
+  width: 100% !important;
+  height: auto !important;
+  line-height: 1.5 !important;
+  padding: 0.85rem 1rem !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid var(--panel-border) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.95rem !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  outline: none !important;
+  box-sizing: border-box !important;
 }
 
 body.light-theme .modern-ui-container input, 
 body.light-theme .modern-ui-container select, 
 body.light-theme .modern-ui-container textarea {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.7) !important;
 }
 
 .modern-ui-container input:focus, 
 .modern-ui-container select:focus, 
 .modern-ui-container textarea:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-glow);
-  background: rgba(0, 0, 0, 0.3);
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-glow) !important;
+  background: rgba(0, 0, 0, 0.3) !important;
 }
 
 body.light-theme .modern-ui-container input:focus, 
 body.light-theme .modern-ui-container select:focus, 
 body.light-theme .modern-ui-container textarea:focus {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.9) !important;
 }
 
 .modern-ui-container .autocomplete-suggestions {
