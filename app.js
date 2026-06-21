@@ -446,12 +446,16 @@ async function fetchBuildings() {
     if (!state.sesstok) state.sesstok = window.__sesstok || '';
     if (!state.pid) state.pid = window.__pid || '';
 
+    const resolvedPageID = window.gPageID || 
+                           (document.querySelector('input[name="pageID"]') ? document.querySelector('input[name="pageID"]').value : '') || 
+                           '-1';
+
     const payload = {
       __sesstok: state.sesstok,
       action: 'getBuildingList',
       pid: state.pid,
       iug: window.__iug || '0',
-      pageID: '-1'
+      pageID: resolvedPageID
     };
 
     const response = await fetch('/common/local_vm_data.php', {

@@ -1090,12 +1090,16 @@ body.light-theme .modern-ui-container .visitor-card {
         if (!state.pid) state.pid = window.__pid || '';
         if (!state.uhash) state.uhash = window.__uhash || '';
 
+        const resolvedPageID = window.gPageID || 
+                               (document.querySelector('input[name="pageID"]') ? document.querySelector('input[name="pageID"]').value : '') || 
+                               '-1';
+
         const payload = {
           __sesstok: state.sesstok,
           action: 'getBuildingList',
           pid: state.pid,
           iug: window.__iug || '0',
-          pageID: '-1'
+          pageID: resolvedPageID
         };
         const response = await fetch('/common/local_vm_data.php', {
           method: 'POST',
