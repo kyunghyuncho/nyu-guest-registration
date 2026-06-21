@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYU Modern Guest Registration
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  A modern, high-fidelity front-end overlay for the NYU visitor registration page.
 // @author       Kyunghyun Cho (Glen de Vries Professor)
 // @match        https://nyu.identigy.io/patron/VisitorManagement/VisitorsHost.php*
@@ -11,6 +11,8 @@
 
 (function() {
   'use strict';
+  const SCRIPT_VERSION = '1.2';
+  console.log(`[NYU-ModernReg] v${SCRIPT_VERSION} loaded`);
 
   // --- EMBEDDED STYLESHEET (style.css) ---
   const cssStyles = `
@@ -1147,6 +1149,10 @@ body.light-theme .modern-ui-container .visitor-card {
       if (window.gBuildingData && window.gBuildingData.length > 0) {
         state.buildings = window.gBuildingData;
         console.log('Resolved buildings from window.gBuildingData:', state.buildings.length);
+        if (state.buildings.length > 0) {
+          console.log('[Building] gBuildingData sample keys:', Object.keys(state.buildings[0]));
+          console.log('[Building] gBuildingData sample:', JSON.stringify(state.buildings[0]));
+        }
         return;
       }
       try {
@@ -1173,6 +1179,10 @@ body.light-theme .modern-ui-container .visitor-card {
         if (response.ok) {
           state.buildings = await response.json();
           console.log('Fetched buildings successfully:', state.buildings.length);
+          if (state.buildings.length > 0) {
+            console.log('[Building] Sample entry keys:', Object.keys(state.buildings[0]));
+            console.log('[Building] Sample entry:', JSON.stringify(state.buildings[0]));
+          }
         }
       } catch (err) {
         console.error('Error loading building metadata:', err);
