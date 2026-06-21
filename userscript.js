@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYU Modern Guest Registration
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  A modern, high-fidelity front-end overlay for the NYU visitor registration page.
 // @author       Kyunghyun Cho (Glen de Vries Professor)
 // @match        https://nyu.identigy.io/patron/VisitorManagement/VisitorsHost.php*
@@ -11,7 +11,7 @@
 
 (function() {
   'use strict';
-  const SCRIPT_VERSION = '1.4';
+  const SCRIPT_VERSION = '1.5';
   console.log(`[NYU-ModernReg] v${SCRIPT_VERSION} loaded`);
 
   // --- EMBEDDED STYLESHEET (style.css) ---
@@ -585,6 +585,147 @@ body.light-theme .modern-ui-container .visitor-card {
 .modern-ui-container .toast.success { border-color: var(--accent-success); }
 .modern-ui-container .toast.error { border-color: var(--accent-danger); }
 .modern-ui-container .toast.warning { border-color: var(--accent-warning); }
+
+/* Calendar Date Picker */
+.modern-ui-container .date-input-wrapper {
+  position: relative;
+}
+
+.modern-ui-container .date-input-wrapper input {
+  cursor: pointer !important;
+}
+
+.modern-ui-container .date-input-wrapper .calendar-icon {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.modern-ui-container .calendar-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10000;
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 1rem;
+  min-width: 290px;
+  animation: calFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+@keyframes calFadeIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modern-ui-container .cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.modern-ui-container .cal-header .cal-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.modern-ui-container .cal-header button {
+  background: none;
+  border: 1px solid var(--panel-border);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 1rem;
+  padding: 0;
+}
+
+.modern-ui-container .cal-header button:hover {
+  background: var(--primary-glow);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.modern-ui-container .cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.modern-ui-container .cal-dow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0.3rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modern-ui-container .cal-day {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+  margin: 1px auto;
+  padding: 0;
+}
+
+.modern-ui-container .cal-day:hover {
+  background: var(--primary-glow);
+  color: var(--primary);
+}
+
+.modern-ui-container .cal-day.today {
+  border: 1px solid var(--primary);
+  font-weight: 600;
+}
+
+.modern-ui-container .cal-day.selected {
+  background: var(--primary) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.modern-ui-container .cal-day.disabled {
+  color: var(--text-muted);
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.modern-ui-container .cal-day.disabled:hover {
+  background: none;
+  color: var(--text-muted);
+}
+
+.modern-ui-container .cal-day.other-month {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
   `;
 
   // --- EMBEDDED MARKUP (index.html body) ---
@@ -666,7 +807,10 @@ body.light-theme .modern-ui-container .visitor-card {
                 <div class="form-row">
                   <div class="form-group">
                     <label for="startDate">Arrival Date</label>
-                    <input type="date" id="startDate" required>
+                    <div class="date-input-wrapper">
+                      <input type="text" id="startDate" readonly required placeholder="Select date...">
+                      <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label for="startTime">Arrival Time</label>
@@ -677,7 +821,10 @@ body.light-theme .modern-ui-container .visitor-card {
                 <div class="form-row">
                   <div class="form-group">
                     <label for="endDate">Departure Date</label>
-                    <input type="date" id="endDate" required>
+                    <div class="date-input-wrapper">
+                      <input type="text" id="endDate" readonly required placeholder="Select date...">
+                      <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label for="endTime">Departure Time</label>
@@ -731,7 +878,10 @@ body.light-theme .modern-ui-container .visitor-card {
                 <div class="form-row">
                   <div class="form-group">
                     <label for="bulkStartDate">Arrival Date</label>
-                    <input type="date" id="bulkStartDate">
+                    <div class="date-input-wrapper">
+                      <input type="text" id="bulkStartDate" readonly placeholder="Select date...">
+                      <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label for="bulkStartTime">Arrival Time</label>
@@ -742,7 +892,10 @@ body.light-theme .modern-ui-container .visitor-card {
                 <div class="form-row">
                   <div class="form-group">
                     <label for="bulkEndDate">Departure Date</label>
-                    <input type="date" id="bulkEndDate">
+                    <div class="date-input-wrapper">
+                      <input type="text" id="bulkEndDate" readonly placeholder="Select date...">
+                      <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label for="bulkEndTime">Departure Time</label>
@@ -841,6 +994,8 @@ body.light-theme .modern-ui-container .visitor-card {
       uhash: window.__uhash || ''
     };
 
+    let startCal, endCal, bulkStartCal, bulkEndCal;
+
     function showToast(message, type = 'info') {
       const container = document.getElementById('toastContainer');
       if (!container) return;
@@ -882,30 +1037,191 @@ body.light-theme .modern-ui-container .visitor-card {
       localStorage.setItem('nyu-visitor-theme', state.theme);
     }
 
-    function initDatePickers() {
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('startDate').value = today;
-      document.getElementById('endDate').value = today;
-      document.getElementById('startDate').min = today;
-      document.getElementById('endDate').min = today;
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
-      const bulkStart = document.getElementById('bulkStartDate');
-      const bulkEnd = document.getElementById('bulkEndDate');
-      if (bulkStart && bulkEnd) {
-        bulkStart.value = today;
-        bulkEnd.value = today;
-        bulkStart.min = today;
-        bulkEnd.min = today;
+    function formatDisplayDate(isoStr) {
+      if (!isoStr) return '';
+      const [y, m, d] = isoStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function toISO(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function createCalendarPicker(inputEl, opts = {}) {
+      const wrapper = inputEl.closest('.date-input-wrapper');
+      let currentMonth = new Date().getMonth();
+      let currentYear = new Date().getFullYear();
+      let selectedISO = opts.initial || '';
+      let minISO = opts.minDate || '';
+      let popup = null;
+      let isOpen = false;
+
+      // Store ISO value as data attribute, display friendly format
+      function setDate(iso) {
+        selectedISO = iso;
+        inputEl.value = formatDisplayDate(iso);
+        inputEl.dataset.isoValue = iso;
+        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
       }
 
-      document.getElementById('startDate').addEventListener('change', (e) => {
-        document.getElementById('endDate').value = e.target.value;
-        document.getElementById('endDate').min = e.target.value;
+      function getMinDate() {
+        return minISO || '';
+      }
+
+      function setMinDate(iso) {
+        minISO = iso;
+        // If current selection is before new min, update it
+        if (selectedISO && selectedISO < iso) {
+          setDate(iso);
+        }
+      }
+
+      function renderCalendar() {
+        if (!popup) return;
+        const todayISO = toISO(new Date());
+        const minD = getMinDate();
+
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+        let html = `<div class="cal-header">
+          <button type="button" class="cal-prev">‹</button>
+          <span class="cal-title">${MONTHS[currentMonth]} ${currentYear}</span>
+          <button type="button" class="cal-next">›</button>
+        </div>
+        <div class="cal-grid">`;
+
+        // Day-of-week headers
+        DAYS.forEach(d => { html += `<span class="cal-dow">${d}</span>`; });
+
+        // Previous month trailing days
+        for (let i = firstDay - 1; i >= 0; i--) {
+          const day = daysInPrevMonth - i;
+          html += `<button type="button" class="cal-day other-month disabled" disabled>${day}</button>`;
+        }
+
+        // Current month days
+        for (let day = 1; day <= daysInMonth; day++) {
+          const iso = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const classes = [];
+          if (iso === todayISO) classes.push('today');
+          if (iso === selectedISO) classes.push('selected');
+          if (minD && iso < minD) classes.push('disabled');
+          html += `<button type="button" class="cal-day ${classes.join(' ')}" data-iso="${iso}" ${minD && iso < minD ? 'disabled' : ''}>${day}</button>`;
+        }
+
+        // Next month leading days (fill to complete grid row)
+        const totalCells = firstDay + daysInMonth;
+        const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+        for (let i = 1; i <= remaining; i++) {
+          html += `<button type="button" class="cal-day other-month disabled" disabled>${i}</button>`;
+        }
+
+        html += '</div>';
+        popup.innerHTML = html;
+
+        // Event listeners
+        popup.querySelector('.cal-prev').addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentMonth--;
+          if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+          renderCalendar();
+        });
+        popup.querySelector('.cal-next').addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentMonth++;
+          if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+          renderCalendar();
+        });
+        popup.querySelectorAll('.cal-day:not(.disabled)').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setDate(btn.dataset.iso);
+            close();
+          });
+        });
+      }
+
+      function open() {
+        if (isOpen) { close(); return; }
+        // Close any other open calendars
+        document.querySelectorAll('.calendar-popup').forEach(p => p.remove());
+
+        popup = document.createElement('div');
+        popup.className = 'calendar-popup';
+        wrapper.appendChild(popup);
+
+        // Navigate to selected month or current month
+        if (selectedISO) {
+          const [y, m] = selectedISO.split('-').map(Number);
+          currentYear = y;
+          currentMonth = m - 1;
+        }
+
+        renderCalendar();
+        isOpen = true;
+      }
+
+      function close() {
+        if (popup) { popup.remove(); popup = null; }
+        isOpen = false;
+      }
+
+      // Toggle on click
+      inputEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        open();
       });
-      if (bulkStart && bulkEnd) {
-        bulkStart.addEventListener('change', (e) => {
-          bulkEnd.value = e.target.value;
-          bulkEnd.min = e.target.value;
+
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (isOpen && !wrapper.contains(e.target)) close();
+      });
+
+      // Public API
+      return { setDate, setMinDate, getDate: () => selectedISO };
+    }
+
+    function initDatePickers() {
+      const todayISO = toISO(new Date());
+
+      // Single form
+      startCal = createCalendarPicker(document.getElementById('startDate'), { initial: todayISO, minDate: todayISO });
+      endCal = createCalendarPicker(document.getElementById('endDate'), { initial: todayISO, minDate: todayISO });
+      startCal.setDate(todayISO);
+      endCal.setDate(todayISO);
+
+      document.getElementById('startDate').addEventListener('change', () => {
+        const newStart = document.getElementById('startDate').dataset.isoValue;
+        if (newStart) {
+          endCal.setMinDate(newStart);
+          endCal.setDate(newStart);
+        }
+      });
+
+      // Bulk form
+      const bulkStartEl = document.getElementById('bulkStartDate');
+      const bulkEndEl = document.getElementById('bulkEndDate');
+      if (bulkStartEl && bulkEndEl) {
+        bulkStartCal = createCalendarPicker(bulkStartEl, { initial: todayISO, minDate: todayISO });
+        bulkEndCal = createCalendarPicker(bulkEndEl, { initial: todayISO, minDate: todayISO });
+        bulkStartCal.setDate(todayISO);
+        bulkEndCal.setDate(todayISO);
+
+        bulkStartEl.addEventListener('change', () => {
+          const newStart = bulkStartEl.dataset.isoValue;
+          if (newStart) {
+            bulkEndCal.setMinDate(newStart);
+            bulkEndCal.setDate(newStart);
+          }
         });
       }
     }
@@ -1405,9 +1721,9 @@ body.light-theme .modern-ui-container .visitor-card {
         return;
       }
 
-      const startDate = document.getElementById('startDate').value;
+      const startDate = document.getElementById('startDate').dataset.isoValue || document.getElementById('startDate').value;
       const startTime = document.getElementById('startTime').value;
-      const endDate = document.getElementById('endDate').value;
+      const endDate = document.getElementById('endDate').dataset.isoValue || document.getElementById('endDate').value;
       const endTime = document.getElementById('endTime').value;
 
       const entryDateRaw = new Date(`${startDate}T${startTime}`);
@@ -1549,9 +1865,9 @@ body.light-theme .modern-ui-container .visitor-card {
         return;
       }
 
-      const startDate = document.getElementById('bulkStartDate').value;
+      const startDate = document.getElementById('bulkStartDate').dataset.isoValue || document.getElementById('bulkStartDate').value;
       const startTime = document.getElementById('bulkStartTime').value;
-      const endDate = document.getElementById('bulkEndDate').value;
+      const endDate = document.getElementById('bulkEndDate').dataset.isoValue || document.getElementById('bulkEndDate').value;
       const endTime = document.getElementById('bulkEndTime').value;
 
       const entryDateRaw = new Date(`${startDate}T${startTime}`);
@@ -1790,14 +2106,16 @@ body.light-theme .modern-ui-container .visitor-card {
             document.getElementById('buildingId').value = document.getElementById('bulkBuildingId').value;
             document.getElementById('buildingPageId').value = document.getElementById('bulkBuildingPageId').value;
           }
-          if (document.getElementById('bulkStartDate').value) {
-            document.getElementById('startDate').value = document.getElementById('bulkStartDate').value;
+          const bulkStartVal = document.getElementById('bulkStartDate').dataset.isoValue || document.getElementById('bulkStartDate').value;
+          if (bulkStartVal && startCal) {
+            startCal.setDate(bulkStartVal);
           }
           if (document.getElementById('bulkStartTime').value) {
             document.getElementById('startTime').value = document.getElementById('bulkStartTime').value;
           }
-          if (document.getElementById('bulkEndDate').value) {
-            document.getElementById('endDate').value = document.getElementById('bulkEndDate').value;
+          const bulkEndVal = document.getElementById('bulkEndDate').dataset.isoValue || document.getElementById('bulkEndDate').value;
+          if (bulkEndVal && endCal) {
+            endCal.setDate(bulkEndVal);
           }
           if (document.getElementById('bulkEndTime').value) {
             document.getElementById('endTime').value = document.getElementById('bulkEndTime').value;
@@ -1815,14 +2133,16 @@ body.light-theme .modern-ui-container .visitor-card {
             document.getElementById('bulkBuildingId').value = document.getElementById('buildingId').value;
             document.getElementById('bulkBuildingPageId').value = document.getElementById('buildingPageId').value;
           }
-          if (document.getElementById('startDate').value) {
-            document.getElementById('bulkStartDate').value = document.getElementById('startDate').value;
+          const startVal = document.getElementById('startDate').dataset.isoValue || document.getElementById('startDate').value;
+          if (startVal && bulkStartCal) {
+            bulkStartCal.setDate(startVal);
           }
           if (document.getElementById('startTime').value) {
             document.getElementById('bulkStartTime').value = document.getElementById('startTime').value;
           }
-          if (document.getElementById('endDate').value) {
-            document.getElementById('bulkEndDate').value = document.getElementById('endDate').value;
+          const endVal = document.getElementById('endDate').dataset.isoValue || document.getElementById('endDate').value;
+          if (endVal && bulkEndCal) {
+            bulkEndCal.setDate(endVal);
           }
           if (document.getElementById('endTime').value) {
             document.getElementById('bulkEndTime').value = document.getElementById('endTime').value;
