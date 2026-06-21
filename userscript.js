@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYU Modern Guest Registration
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  A modern, high-fidelity front-end overlay for the NYU visitor registration page.
 // @author       Kyunghyun Cho (Glen de Vries Professor)
 // @match        https://nyu.identigy.io/patron/VisitorManagement/VisitorsHost.php*
@@ -11,7 +11,7 @@
 
 (function() {
   'use strict';
-  const SCRIPT_VERSION = '1.3';
+  const SCRIPT_VERSION = '1.4';
   console.log(`[NYU-ModernReg] v${SCRIPT_VERSION} loaded`);
 
   // --- EMBEDDED STYLESHEET (style.css) ---
@@ -1056,7 +1056,7 @@ body.light-theme .modern-ui-container .visitor-card {
           const displayName = b.BUILDING_NAME || b.building_name || b.BuildingName || b.name || input.value;
           input.value = displayName;
           idHolder.value = b.BUILDING_ID || b.building_id || b.BuildingID || b.buildingId || b.id || '';
-          pageIdHolder.value = b.PAGEID || b.pageId || b.PageID || b.pageid || '';
+          pageIdHolder.value = b.PAGEID || b.PERMSPAGEID || b.pageId || b.PageID || b.pageid || '';
           console.log(`[Building] ${label}:`, JSON.stringify(b));
         };
 
@@ -1116,7 +1116,7 @@ body.light-theme .modern-ui-container .visitor-card {
           div.className = 'suggestion-item';
           const name = building.BUILDING_NAME || building.building_name || building.BuildingName || building.name || '';
           const bldgId = building.BUILDING_ID || building.building_id || building.BuildingID || building.id || '';
-          const pageId = building.PAGEID || building.pageId || building.PageID || building.pageid || '';
+          const pageId = building.PAGEID || building.PERMSPAGEID || building.pageId || building.PageID || building.pageid || '';
           const addr = building.ADDRESS_SIMPLE || building.address || '';
           const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const regex = new RegExp(`(${escapedVal})`, 'gi');
@@ -1380,7 +1380,7 @@ body.light-theme .modern-ui-container .visitor-card {
         });
         if (exactMatch) {
           buildingId = exactMatch.BUILDING_ID || '';
-          buildingPageId = exactMatch.PAGEID || '';
+          buildingPageId = exactMatch.PAGEID || exactMatch.PERMSPAGEID || '';
           document.getElementById('buildingSearch').value = exactMatch.BUILDING_NAME || '';
           document.getElementById('buildingId').value = buildingId;
           document.getElementById('buildingPageId').value = buildingPageId;
@@ -1392,7 +1392,7 @@ body.light-theme .modern-ui-container .visitor-card {
           });
           if (matches.length === 1) {
             buildingId = matches[0].BUILDING_ID || '';
-            buildingPageId = matches[0].PAGEID || '';
+            buildingPageId = matches[0].PAGEID || matches[0].PERMSPAGEID || '';
             document.getElementById('buildingSearch').value = matches[0].BUILDING_NAME || '';
             document.getElementById('buildingId').value = buildingId;
             document.getElementById('buildingPageId').value = buildingPageId;
@@ -1491,7 +1491,7 @@ body.light-theme .modern-ui-container .visitor-card {
         const resolveBldg = (b, label) => {
           // Try common ID field names
           buildingId = b.BUILDING_ID || b.building_id || b.BuildingID || b.buildingId || b.id || '';
-          buildingPageId = b.PAGEID || b.pageId || b.PageID || b.pageid || '';
+          buildingPageId = b.PAGEID || b.PERMSPAGEID || b.pageId || b.PageID || b.pageid || '';
           const displayName = b.BUILDING_NAME || b.building_name || b.BuildingName || b.name || buildingName;
           document.getElementById('bulkBuildingSearch').value = displayName;
           document.getElementById('bulkBuildingId').value = buildingId;
@@ -1743,7 +1743,7 @@ body.light-theme .modern-ui-container .visitor-card {
           if (matchB) {
             document.getElementById('buildingSearch').value = matchB.BUILDING_NAME;
             document.getElementById('buildingId').value = matchB.BUILDING_ID;
-            document.getElementById('buildingPageId').value = matchB.PAGEID;
+            document.getElementById('buildingPageId').value = matchB.PAGEID || matchB.PERMSPAGEID || '';
           }
           document.querySelector('.tab-btn[data-tab="single"]').click();
           showToast(`Cloned details for ${v.first} ${v.last}`, 'success');
