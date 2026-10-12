@@ -18,7 +18,7 @@ const state = {
 
 const HOST_PHONE_STORAGE_KEY = 'nyu-visitor-host-phone';
 
-let startCal, endCal, bulkStartCal, bulkEndCal;
+let startCal, endCal;
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -418,33 +418,6 @@ function initDatePickers() {
       endCal.setDate(newStart);
     }
   });
-
-  const bulkStartEl = document.getElementById('bulkStartDate');
-  const bulkEndEl = document.getElementById('bulkEndDate');
-  if (bulkStartEl && bulkEndEl) {
-    bulkStartCal = createCalendarPicker(bulkStartEl, {
-      initial: todayISO,
-      minDate: todayISO,
-      maxDate: maxISO
-    });
-    bulkEndCal = createCalendarPicker(bulkEndEl, {
-      initial: todayISO,
-      minDate: todayISO,
-      maxDate: maxISO
-    });
-    bulkStartCal.setDate(todayISO);
-    bulkEndCal.setDate(todayISO);
-
-    bulkStartEl.addEventListener('change', () => {
-      const newStart = bulkStartEl.dataset.isoValue;
-      if (newStart) {
-        const startMax = addDaysISO(newStart, state.maxDays);
-        bulkEndCal.setMinDate(newStart);
-        if (typeof bulkEndCal.setMaxDate === 'function') bulkEndCal.setMaxDate(startMax);
-        bulkEndCal.setDate(newStart);
-      }
-    });
-  }
 }
 
 // Local Storage & History Caching
@@ -456,9 +429,7 @@ function loadLocalStorageData() {
 
   const savedPhone = localStorage.getItem(HOST_PHONE_STORAGE_KEY) || '';
   const phoneEl = document.getElementById('hostPhone');
-  const bulkPhoneEl = document.getElementById('bulkHostPhone');
   if (phoneEl && savedPhone) phoneEl.value = savedPhone;
-  if (bulkPhoneEl && savedPhone) bulkPhoneEl.value = savedPhone;
 
   // Load mock registrations if in mock mode
   if (state.isMockMode) {
@@ -540,198 +511,46 @@ function renderQuickDupChips() {
   });
 }
 
+function appendGuestRow(first, last, email) {
+  const paste = document.getElementById('guestPaste');
+  if (!paste) return;
+  const line = `${first} ${last}, ${email}`.trim();
+  paste.value = paste.value.trim() ? `${paste.value.trim()}\n${line}` : line;
+  paste.focus();
+}
+
 function populateFormWithGuest(guest) {
-  document.getElementById('first').value = guest.first;
-  document.getElementById('last').value = guest.last;
-  document.getElementById('email').value = guest.email;
-  showToast(`Loaded ${guest.first} ${guest.last}'s details`, 'success');
+  appendGuestRow(guest.first, guest.last, guest.email);
+  if (guest.buildingName) {
+    const bInput = document.getElementById('buildingSearch');
+    const bId = document.getElementById('buildingId');
+    if (bInput && bId) {
+      bInput.value = guest.buildingName;
+      bId.value = guest.buildingId || '';
+    }
+  }
+  showToast(`Added ${guest.first} ${guest.last} to the guest list`, 'success');
 }
 
 // Event Listeners Setup
 function setupEventListeners() {
-  // Theme Toggle
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-  
-  // Sync button
+
   document.getElementById('refreshList').addEventListener('click', () => {
     syncVisitors(true);
   });
 
-  // Tab switching
-  const tabs = document.querySelectorAll('.tab-btn');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      
-      const tabName = tab.getAttribute('data-tab');
-      if (tabName === 'single') {
-        // copy bulk to single
-        if (document.getElementById('bulkBuildingSearch').value) {
-          document.getElementById('buildingSearch').value = document.getElementById('bulkBuildingSearch').value;
-          document.getElementById('buildingId').value = document.getElementById('bulkBuildingId').value;
-        }
-        const bulkStartVal = getDateInputValue('bulkStartDate');
-        if (bulkStartVal && startCal) startCal.setDate(bulkStartVal);
-        if (document.getElementById('bulkStartTime').value) {
-          document.getElementById('startTime').value = document.getElementById('bulkStartTime').value;
-        }
-        const bulkEndVal = getDateInputValue('bulkEndDate');
-        if (bulkEndVal && endCal) endCal.setDate(bulkEndVal);
-        if (document.getElementById('bulkEndTime').value) {
-          document.getElementById('endTime').value = document.getElementById('bulkEndTime').value;
-        }
-        if (document.getElementById('bulkVisitorType').value) {
-          document.getElementById('visitorType').value = document.getElementById('bulkVisitorType').value;
-        }
-        syncSharedHostFields('bulk');
-
-        document.getElementById('singleTab').style.display = 'block';
-        document.getElementById('bulkTab').style.display = 'none';
-      } else {
-        // copy single to bulk
-        if (document.getElementById('buildingSearch').value) {
-          document.getElementById('bulkBuildingSearch').value = document.getElementById('buildingSearch').value;
-          document.getElementById('bulkBuildingId').value = document.getElementById('buildingId').value;
-        }
-        const startVal = getDateInputValue('startDate');
-        if (startVal && bulkStartCal) bulkStartCal.setDate(startVal);
-        if (document.getElementById('startTime').value) {
-          document.getElementById('bulkStartTime').value = document.getElementById('startTime').value;
-        }
-        const endVal = getDateInputValue('endDate');
-        if (endVal && bulkEndCal) bulkEndCal.setDate(endVal);
-        if (document.getElementById('endTime').value) {
-          document.getElementById('bulkEndTime').value = document.getElementById('endTime').value;
-        }
-        if (document.getElementById('visitorType').value) {
-          document.getElementById('bulkVisitorType').value = document.getElementById('visitorType').value;
-        }
-        syncSharedHostFields('single');
-
-        document.getElementById('singleTab').style.display = 'none';
-        document.getElementById('bulkTab').style.display = 'block';
-      }
-    });
-  });
-
-  // Form Autocomplete for First/Last/Email
-  setupInputAutocomplete('first', 'firstSuggestions', 'first');
-  setupInputAutocomplete('last', 'lastSuggestions', 'last');
-  setupInputAutocomplete('email', 'emailSuggestions', 'email');
-
-  // Building Search Autocomplete
   setupBuildingAutocomplete('buildingSearch', 'buildingId', 'buildingSuggestions');
-  setupBuildingAutocomplete('bulkBuildingSearch', 'bulkBuildingId', 'bulkBuildingSuggestions');
 
-  // Persist / mirror host phone and shared notes
-  ['hostPhone', 'bulkHostPhone'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('change', () => {
-      persistHostPhone(el.value);
-      const otherId = id === 'hostPhone' ? 'bulkHostPhone' : 'hostPhone';
-      const other = document.getElementById(otherId);
-      if (other && !other.value) other.value = el.value.trim();
-    });
-  });
+  const phoneEl = document.getElementById('hostPhone');
+  if (phoneEl) {
+    phoneEl.addEventListener('change', () => persistHostPhone(phoneEl.value));
+  }
 
-  // Single Form Submit
-  document.getElementById('registrationForm').addEventListener('submit', handleSingleSubmit);
+  document.getElementById('btnRegister').addEventListener('click', handleRegisterSubmit);
 
-  // Bulk Submit
-  document.getElementById('btnRegisterBulk').addEventListener('click', handleBulkSubmit);
-
-  // Visitor List Filter
   document.getElementById('visitorFilter').addEventListener('input', (e) => {
     renderVisitorList(e.target.value);
-  });
-}
-
-function syncSharedHostFields(from) {
-  const pairs = [
-    ['hostPhone', 'bulkHostPhone'],
-    ['roomNotes', 'bulkRoomNotes'],
-    ['onBehalfOf', 'bulkOnBehalfOf']
-  ];
-  pairs.forEach(([singleId, bulkId]) => {
-    const single = document.getElementById(singleId);
-    const bulk = document.getElementById(bulkId);
-    if (!single || !bulk) return;
-    if (from === 'bulk' && bulk.value) single.value = bulk.value;
-    if (from === 'single' && single.value) bulk.value = single.value;
-  });
-}
-
-// Generic Text Field Autocomplete suggestions
-function setupInputAutocomplete(inputId, suggestionsId, fieldKey) {
-  const input = document.getElementById(inputId);
-  const suggestionsBox = document.getElementById(suggestionsId);
-  
-  input.addEventListener('input', () => {
-    const val = input.value.trim().toLowerCase();
-    if (val.length < 1) {
-      suggestionsBox.style.display = 'none';
-      return;
-    }
-    
-    // Filter history for matches
-    const matches = state.history.filter(guest => 
-      guest[fieldKey].toLowerCase().includes(val)
-    );
-    
-    if (matches.length === 0) {
-      suggestionsBox.style.display = 'none';
-      return;
-    }
-    
-    suggestionsBox.innerHTML = '';
-    suggestionsBox.style.display = 'block';
-    
-    // Deduplicate suggestions
-    const uniqueVals = [...new Set(matches.map(m => m[fieldKey]))].slice(0, 5);
-    
-    uniqueVals.forEach(matchVal => {
-      const div = document.createElement('div');
-      div.className = 'suggestion-item';
-      
-      // Highlight matching characters
-      const regex = new RegExp(`(${val})`, 'gi');
-      const highlighted = matchVal.replace(regex, '<strong>$1</strong>');
-      div.innerHTML = highlighted;
-      
-      div.addEventListener('click', () => {
-        input.value = matchVal;
-        suggestionsBox.style.display = 'none';
-        
-        // If selecting email, auto-fill first and last too
-        if (fieldKey === 'email') {
-          const guestObj = matches.find(m => m.email === matchVal);
-          if (guestObj) {
-            document.getElementById('first').value = guestObj.first;
-            document.getElementById('last').value = guestObj.last;
-            
-                // Auto-fill building if present in history record
-                if (guestObj.buildingName) {
-                  const bInput = document.getElementById('buildingSearch');
-                  const bId = document.getElementById('buildingId');
-                  if (bInput && bId) {
-                    bInput.value = guestObj.buildingName;
-                    bId.value = guestObj.buildingId || '';
-                  }
-                }
-          }
-        }
-      });
-      suggestionsBox.appendChild(div);
-    });
-  });
-
-  // Hide suggestions when clicking outside
-  document.addEventListener('click', (e) => {
-    if (e.target !== input && e.target !== suggestionsBox) {
-      suggestionsBox.style.display = 'none';
-    }
   });
 }
 
@@ -1208,26 +1027,35 @@ function ensureBuildingSelected(searchInputId, idHolderId) {
   };
 }
 
-// Form Handlers: Single Guest Submission
-async function handleSingleSubmit(e) {
-  e.preventDefault();
-
-  const first = document.getElementById('first').value.trim();
-  const last = document.getElementById('last').value.trim();
-  const email = document.getElementById('email').value.trim();
+// Form Handler: multi-guest registration (also works for a single row)
+async function handleRegisterSubmit() {
+  const pasteData = document.getElementById('guestPaste').value.trim();
   const visitorType = document.getElementById('visitorType').value;
-  const hostPhone = document.getElementById('hostPhone').value.trim();
+  const hostPhone = (document.getElementById('hostPhone')?.value || '').trim();
   const roomNotes = (document.getElementById('roomNotes')?.value || '').trim();
   const onBehalfOf = (document.getElementById('onBehalfOf')?.value || '').trim();
+
+  if (!pasteData) {
+    showToast('Please paste at least one guest row', 'error');
+    return;
+  }
 
   if (!hostPhone) {
     showToast('Host phone number is required by NYU JRNY', 'error');
     return;
   }
 
+  if (state.buildings.length === 0) {
+    if (window.gBuildingData && window.gBuildingData.length > 0) {
+      state.buildings = window.gBuildingData;
+    } else {
+      await fetchBuildings();
+    }
+  }
+
   const { buildingId, buildingName } = ensureBuildingSelected('buildingSearch', 'buildingId');
   if (!buildingId) {
-    showToast('Please select a valid NYU building from the suggestions', 'error');
+    showToast('Please select an NYU building from the suggestions', 'error');
     return;
   }
 
@@ -1250,101 +1078,13 @@ async function handleSingleSubmit(e) {
     return;
   }
 
-  const payload = buildRegistrationPayload({
-    first,
-    last,
-    email,
-    visitorType,
-    buildingId,
-    buildingName,
-    hostPhone,
-    roomNotes,
-    onBehalfOf,
-    entryDateRaw,
-    exitDateRaw
-  });
-
-  persistHostPhone(hostPhone);
-  showToast('Submitting guest registration...', 'info');
-
-  const res = await registerGuest(payload);
-
-  if (res.success) {
-    showToast(`Registered ${first} ${last} successfully!`, 'success');
-    saveGuestToHistory(first, last, email, buildingName, buildingId, '');
-
-    document.getElementById('first').value = '';
-    document.getElementById('last').value = '';
-    document.getElementById('email').value = '';
-
-    if (state.isMockMode) {
-      syncVisitors();
-    } else {
-      setTimeout(() => window.location.reload(), 1000);
-    }
-  } else {
-    showToast(`Failed: ${res.error || 'Unknown Error'}`, 'error');
-  }
-}
-
-// Form Handlers: Bulk Guest Registration
-async function handleBulkSubmit() {
-  const pasteData = document.getElementById('bulkPaste').value.trim();
-  const visitorType = document.getElementById('bulkVisitorType').value;
-  const hostPhone = (document.getElementById('bulkHostPhone')?.value || '').trim();
-  const roomNotes = (document.getElementById('bulkRoomNotes')?.value || '').trim();
-  const onBehalfOf = (document.getElementById('bulkOnBehalfOf')?.value || '').trim();
-
-  if (!pasteData) {
-    showToast('Please paste visitor details', 'error');
-    return;
-  }
-
-  if (!hostPhone) {
-    showToast('Host phone number is required by NYU JRNY', 'error');
-    return;
-  }
-
-  if (state.buildings.length === 0) {
-    if (window.gBuildingData && window.gBuildingData.length > 0) {
-      state.buildings = window.gBuildingData;
-    } else {
-      await fetchBuildings();
-    }
-  }
-
-  const { buildingId, buildingName } = ensureBuildingSelected('bulkBuildingSearch', 'bulkBuildingId');
-  if (!buildingId) {
-    showToast('Please select an NYU building from the suggestions', 'error');
-    return;
-  }
-
-  if (!resolveFormPageId() && !state.isMockMode) {
-    showToast('Portal session page ID missing — refresh the NYU page and try again', 'error');
-    return;
-  }
-
-  const startDate = getDateInputValue('bulkStartDate');
-  const startTime = document.getElementById('bulkStartTime').value;
-  const endDate = getDateInputValue('bulkEndDate');
-  const endTime = document.getElementById('bulkEndTime').value;
-
-  const entryDateRaw = new Date(`${startDate}T${startTime}`);
-  const exitDateRaw = new Date(`${endDate}T${endTime}`);
-
-  const stayError = validateStayWindow(entryDateRaw, exitDateRaw);
-  if (stayError) {
-    showToast(stayError, 'error');
-    return;
-  }
-
   const guests = parseBulkText(pasteData);
   if (guests.length === 0) {
     showToast('Could not parse any guest rows. Verify format.', 'error');
     return;
   }
 
-  const queueContainer = document.getElementById('bulkQueue');
+  const queueContainer = document.getElementById('guestQueue');
   queueContainer.innerHTML = '';
   queueContainer.style.display = 'block';
 
@@ -1360,7 +1100,7 @@ async function handleBulkSubmit() {
   });
 
   persistHostPhone(hostPhone);
-  showToast(`Beginning registration of ${guests.length} visitors...`, 'info');
+  showToast(`Registering ${guests.length} visitor${guests.length === 1 ? '' : 's'}...`, 'info');
 
   let successCount = 0;
   for (let i = 0; i < queueItems.length; i++) {
@@ -1400,10 +1140,10 @@ async function handleBulkSubmit() {
   }
 
   showToast(
-    `Bulk registration finished: ${successCount}/${guests.length} succeeded`,
+    `Registration finished: ${successCount}/${guests.length} succeeded`,
     successCount === guests.length ? 'success' : 'warning'
   );
-  document.getElementById('bulkPaste').value = '';
+  document.getElementById('guestPaste').value = '';
   if (state.isMockMode) {
     syncVisitors();
   } else if (successCount > 0) {
@@ -1549,10 +1289,8 @@ function renderVisitorList(filterText = '') {
 
     // Button event bindings
     card.querySelector('.btn-dup').addEventListener('click', () => {
-      document.getElementById('first').value = visitor.first;
-      document.getElementById('last').value = visitor.last;
-      document.getElementById('email').value = visitor.email;
-      
+      appendGuestRow(visitor.first, visitor.last, visitor.email || '');
+
       const matchingB = state.buildings.find((b) => {
         const name = getBuildingName(b);
         return name && (name.includes(visitor.buildingName) || visitor.buildingName.includes(name));
@@ -1561,9 +1299,8 @@ function renderVisitorList(filterText = '') {
         document.getElementById('buildingSearch').value = getBuildingName(matchingB);
         document.getElementById('buildingId').value = getBuildingId(matchingB);
       }
-      
-      document.querySelector('.tab-btn[data-tab="single"]').click();
-      showToast(`Cloned details for ${visitor.first} ${visitor.last}`, 'success');
+
+      showToast(`Added ${visitor.first} ${visitor.last} to the guest list`, 'success');
     });
 
     const checkoutBtn = card.querySelector('.btn-checkout');
