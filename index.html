@@ -73,18 +73,33 @@
 
               <div class="form-row">
                 <div class="form-group">
+                  <label for="hostPhone">Host Phone Number *</label>
+                  <input type="tel" id="hostPhone" required placeholder="e.g. 212-998-0000" autocomplete="tel">
+                </div>
+                <div class="form-group">
                   <label for="visitorType">Visitor Type</label>
                   <select id="visitorType">
                     <option value="Visitor">Visitor</option>
                     <option value="Vendor">Vendor</option>
                   </select>
                 </div>
+              </div>
+
+              <div class="form-group">
+                <label for="buildingSearch">NYU Building *</label>
+                <input type="text" id="buildingSearch" required placeholder="Search building (e.g. 60 Fifth...)">
+                <input type="hidden" id="buildingId">
+                <div id="buildingSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+              </div>
+
+              <div class="form-row">
                 <div class="form-group">
-                  <label for="buildingSearch">NYU Building *</label>
-                  <input type="text" id="buildingSearch" required placeholder="Search building (e.g. 60 5th...)">
-                  <input type="hidden" id="buildingId">
-                  <input type="hidden" id="buildingPageId">
-                  <div id="buildingSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                  <label for="roomNotes">Office / Room / Notes</label>
+                  <input type="text" id="roomNotes" placeholder="Optional room number or extra info">
+                </div>
+                <div class="form-group">
+                  <label for="onBehalfOf">On behalf of host</label>
+                  <input type="text" id="onBehalfOf" placeholder="Optional">
                 </div>
               </div>
 
@@ -148,11 +163,8 @@
 
               <div class="form-row">
                 <div class="form-group">
-                  <label for="bulkBuildingSearch">NYU Building *</label>
-                  <input type="text" id="bulkBuildingSearch" placeholder="Search building for all guests...">
-                  <input type="hidden" id="bulkBuildingId">
-                  <input type="hidden" id="bulkBuildingPageId">
-                  <div id="bulkBuildingSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                  <label for="bulkHostPhone">Host Phone Number *</label>
+                  <input type="tel" id="bulkHostPhone" required placeholder="e.g. 212-998-0000" autocomplete="tel">
                 </div>
                 <div class="form-group">
                   <label for="bulkVisitorType">Visitor Type</label>
@@ -160,6 +172,24 @@
                     <option value="Visitor">Visitor</option>
                     <option value="Vendor">Vendor</option>
                   </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="bulkBuildingSearch">NYU Building *</label>
+                <input type="text" id="bulkBuildingSearch" placeholder="Search building for all guests...">
+                <input type="hidden" id="bulkBuildingId">
+                <div id="bulkBuildingSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="bulkRoomNotes">Office / Room / Notes</label>
+                  <input type="text" id="bulkRoomNotes" placeholder="Optional room number or extra info">
+                </div>
+                <div class="form-group">
+                  <label for="bulkOnBehalfOf">On behalf of host</label>
+                  <input type="text" id="bulkOnBehalfOf" placeholder="Optional">
                 </div>
               </div>
 

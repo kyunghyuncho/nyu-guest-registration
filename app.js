@@ -11,8 +11,12 @@ const state = {
   isMockMode: false,
   sesstok: '',
   pid: '',
-  uhash: ''
+  uhash: '',
+  pageId: '',
+  maxDays: 90
 };
+
+const HOST_PHONE_STORAGE_KEY = 'nyu-visitor-host-phone';
 
 let startCal, endCal, bulkStartCal, bulkEndCal;
 
@@ -23,18 +27,124 @@ const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 function checkEnvironment() {
   const isLive = window.location.hostname.includes('identigy.io');
   state.isMockMode = !isLive;
-  
+
   if (isLive) {
-    // Read global variables injected in the page <head>
-    state.sesstok = window.__sesstok || '';
-    state.pid = window.__pid || '';
-    state.uhash = window.__uhash || '';
+    refreshSessionTokens();
   } else {
     // Generate dummy tokens for local mockup
     state.sesstok = 'mock_sesstok_123456';
     state.pid = '51031';
     state.uhash = 'mock_uhash_abcdef';
+    state.pageId = 'mock_pageid';
+    state.maxDays = 90;
   }
+}
+
+function refreshSessionTokens() {
+  state.sesstok = window.__sesstok || state.sesstok || '';
+  state.pid = window.__pid || state.pid || '';
+  state.uhash = window.__uhash || state.uhash || '';
+  if (typeof window.__maxDays === 'number' && window.__maxDays > 0) {
+    state.maxDays = window.__maxDays;
+  }
+  state.pageId = resolveFormPageId();
+}
+
+/** Portal form pageID (gPageID), NOT building.PAGEID / PERMSPAGEID. */
+function resolveFormPageId() {
+  const fromInput =
+    document.querySelector('#original-identigy-content input[name="pageID"]') ||
+    document.querySelector('input[name="pageID"]');
+  return (
+    window.gPageID ||
+    (fromInput && fromInput.value) ||
+    state.pageId ||
+    ''
+  );
+}
+
+function getBuildingId(building) {
+  return (
+    building.BUILDING_ID ||
+    building.building_id ||
+    building.BuildingID ||
+    building.buildingId ||
+    building.id ||
+    ''
+  );
+}
+
+function getBuildingName(building) {
+  return (
+    building.BUILDING_NAME ||
+    building.building_name ||
+    building.BuildingName ||
+    building.name ||
+    ''
+  );
+}
+
+function addDaysISO(isoStr, days) {
+  const [y, m, d] = isoStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return toISO(dt);
+}
+
+function validateStayWindow(entryDateRaw, exitDateRaw) {
+  if (exitDateRaw <= entryDateRaw) {
+    return 'Departure time must be after arrival time';
+  }
+  const maxMs = state.maxDays * 24 * 60 * 60 * 1000;
+  if (exitDateRaw.getTime() - entryDateRaw.getTime() > maxMs) {
+    return `Visit length cannot exceed ${state.maxDays} days (JRNY limit)`;
+  }
+  return '';
+}
+
+function buildRegistrationPayload({
+  first,
+  last,
+  email,
+  visitorType,
+  buildingId,
+  buildingName,
+  hostPhone,
+  roomNotes = '',
+  onBehalfOf = '',
+  entryDateRaw,
+  exitDateRaw
+}) {
+  refreshSessionTokens();
+  const formPageId = resolveFormPageId();
+  const tzOffsetHours = String(new Date().getTimezoneOffset() / 60);
+
+  const payload = {
+    action: 'Register',
+    __sesstok: state.sesstok,
+    first,
+    last,
+    local_VisitorType: visitorType,
+    local_cdEmail: email,
+    local_HostPhoneVisit: hostPhone,
+    buildingID1: buildingId,
+    buildingName1: buildingName,
+    client_tz: tzOffsetHours,
+    entryDate: formatApiDate(entryDateRaw),
+    exitDate: formatApiDate(exitDateRaw)
+  };
+
+  if (formPageId) {
+    payload['pageID[]'] = formPageId;
+  }
+  if (roomNotes) {
+    payload.buildingRoomNumber1 = roomNotes;
+  }
+  if (onBehalfOf) {
+    payload.local_onBehalfOfHost = onBehalfOf;
+  }
+
+  return payload;
 }
 
 // @standalone-bootstrap-start
@@ -104,13 +214,14 @@ function createCalendarPicker(inputEl, opts = {}) {
   const wrapper = inputEl.closest('.date-input-wrapper');
   if (!wrapper) {
     console.warn('[NYU-ModernReg] date input missing .date-input-wrapper parent:', inputEl.id);
-    return { setDate: () => {}, setMinDate: () => {}, getDate: () => '' };
+    return { setDate: () => {}, setMinDate: () => {}, setMaxDate: () => {}, getDate: () => '' };
   }
 
   let currentMonth = new Date().getMonth();
   let currentYear = new Date().getFullYear();
   let selectedISO = opts.initial || '';
   let minISO = opts.minDate || '';
+  let maxISO = opts.maxDate || '';
   let popup = null;
   let isOpen = false;
   let outsideHandler = null;
@@ -129,6 +240,13 @@ function createCalendarPicker(inputEl, opts = {}) {
     }
   }
 
+  function setMaxDate(iso) {
+    maxISO = iso;
+    if (selectedISO && maxISO && selectedISO > maxISO) {
+      setDate(maxISO);
+    }
+  }
+
   function positionPopup() {
     if (!popup) return;
     const rect = inputEl.getBoundingClientRect();
@@ -141,35 +259,37 @@ function createCalendarPicker(inputEl, opts = {}) {
 
   function renderCalendar() {
     if (!popup) return;
-    const todayISO = toISO(new Date());
-    const minD = minISO || '';
+        const todayISO = toISO(new Date());
+        const minD = minISO || '';
+        const maxD = maxISO || '';
 
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
 
-    let html = `<div class="cal-header">
-      <button type="button" class="cal-prev">‹</button>
-      <span class="cal-title">${MONTHS[currentMonth]} ${currentYear}</span>
-      <button type="button" class="cal-next">›</button>
-    </div>
-    <div class="cal-grid">`;
+        let html = `<div class="cal-header">
+          <button type="button" class="cal-prev">‹</button>
+          <span class="cal-title">${MONTHS[currentMonth]} ${currentYear}</span>
+          <button type="button" class="cal-next">›</button>
+        </div>
+        <div class="cal-grid">`;
 
-    DAYS.forEach(d => { html += `<span class="cal-dow">${d}</span>`; });
+        DAYS.forEach(d => { html += `<span class="cal-dow">${d}</span>`; });
 
-    for (let i = firstDay - 1; i >= 0; i--) {
-      const day = daysInPrevMonth - i;
-      html += `<button type="button" class="cal-day other-month disabled" disabled>${day}</button>`;
-    }
+        for (let i = firstDay - 1; i >= 0; i--) {
+          const day = daysInPrevMonth - i;
+          html += `<button type="button" class="cal-day other-month disabled" disabled>${day}</button>`;
+        }
 
-    for (let day = 1; day <= daysInMonth; day++) {
-      const iso = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const classes = [];
-      if (iso === todayISO) classes.push('today');
-      if (iso === selectedISO) classes.push('selected');
-      if (minD && iso < minD) classes.push('disabled');
-      html += `<button type="button" class="cal-day ${classes.join(' ')}" data-iso="${iso}" ${minD && iso < minD ? 'disabled' : ''}>${day}</button>`;
-    }
+        for (let day = 1; day <= daysInMonth; day++) {
+          const iso = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const classes = [];
+          if (iso === todayISO) classes.push('today');
+          if (iso === selectedISO) classes.push('selected');
+          const outOfRange = (minD && iso < minD) || (maxD && iso > maxD);
+          if (outOfRange) classes.push('disabled');
+          html += `<button type="button" class="cal-day ${classes.join(' ')}" data-iso="${iso}" ${outOfRange ? 'disabled' : ''}>${day}</button>`;
+        }
 
     const totalCells = firstDay + daysInMonth;
     const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
@@ -269,21 +389,32 @@ function createCalendarPicker(inputEl, opts = {}) {
     if (isOpen) positionPopup();
   }, true);
 
-  return { setDate, setMinDate, getDate: () => selectedISO, close };
+  return { setDate, setMinDate, setMaxDate, getDate: () => selectedISO, close };
 }
 
 function initDatePickers() {
   const todayISO = toISO(new Date());
+  const maxISO = addDaysISO(todayISO, state.maxDays);
 
-  startCal = createCalendarPicker(document.getElementById('startDate'), { initial: todayISO, minDate: todayISO });
-  endCal = createCalendarPicker(document.getElementById('endDate'), { initial: todayISO, minDate: todayISO });
+  startCal = createCalendarPicker(document.getElementById('startDate'), {
+    initial: todayISO,
+    minDate: todayISO,
+    maxDate: maxISO
+  });
+  endCal = createCalendarPicker(document.getElementById('endDate'), {
+    initial: todayISO,
+    minDate: todayISO,
+    maxDate: maxISO
+  });
   startCal.setDate(todayISO);
   endCal.setDate(todayISO);
 
   document.getElementById('startDate').addEventListener('change', () => {
     const newStart = document.getElementById('startDate').dataset.isoValue;
     if (newStart) {
+      const startMax = addDaysISO(newStart, state.maxDays);
       endCal.setMinDate(newStart);
+      if (typeof endCal.setMaxDate === 'function') endCal.setMaxDate(startMax);
       endCal.setDate(newStart);
     }
   });
@@ -291,15 +422,25 @@ function initDatePickers() {
   const bulkStartEl = document.getElementById('bulkStartDate');
   const bulkEndEl = document.getElementById('bulkEndDate');
   if (bulkStartEl && bulkEndEl) {
-    bulkStartCal = createCalendarPicker(bulkStartEl, { initial: todayISO, minDate: todayISO });
-    bulkEndCal = createCalendarPicker(bulkEndEl, { initial: todayISO, minDate: todayISO });
+    bulkStartCal = createCalendarPicker(bulkStartEl, {
+      initial: todayISO,
+      minDate: todayISO,
+      maxDate: maxISO
+    });
+    bulkEndCal = createCalendarPicker(bulkEndEl, {
+      initial: todayISO,
+      minDate: todayISO,
+      maxDate: maxISO
+    });
     bulkStartCal.setDate(todayISO);
     bulkEndCal.setDate(todayISO);
 
     bulkStartEl.addEventListener('change', () => {
       const newStart = bulkStartEl.dataset.isoValue;
       if (newStart) {
+        const startMax = addDaysISO(newStart, state.maxDays);
         bulkEndCal.setMinDate(newStart);
+        if (typeof bulkEndCal.setMaxDate === 'function') bulkEndCal.setMaxDate(startMax);
         bulkEndCal.setDate(newStart);
       }
     });
@@ -312,11 +453,24 @@ function loadLocalStorageData() {
   const savedHistory = localStorage.getItem('nyu-visitor-history');
   state.history = savedHistory ? JSON.parse(savedHistory) : [];
   renderQuickDupChips();
-  
+
+  const savedPhone = localStorage.getItem(HOST_PHONE_STORAGE_KEY) || '';
+  const phoneEl = document.getElementById('hostPhone');
+  const bulkPhoneEl = document.getElementById('bulkHostPhone');
+  if (phoneEl && savedPhone) phoneEl.value = savedPhone;
+  if (bulkPhoneEl && savedPhone) bulkPhoneEl.value = savedPhone;
+
   // Load mock registrations if in mock mode
   if (state.isMockMode) {
     const savedRegs = localStorage.getItem('nyu-mock-registrations');
     state.registeredVisitors = savedRegs ? JSON.parse(savedRegs) : getMockRegisteredVisitors();
+  }
+}
+
+function persistHostPhone(phone) {
+  const trimmed = (phone || '').trim();
+  if (trimmed) {
+    localStorage.setItem(HOST_PHONE_STORAGE_KEY, trimmed);
   }
 }
 
@@ -416,7 +570,6 @@ function setupEventListeners() {
         if (document.getElementById('bulkBuildingSearch').value) {
           document.getElementById('buildingSearch').value = document.getElementById('bulkBuildingSearch').value;
           document.getElementById('buildingId').value = document.getElementById('bulkBuildingId').value;
-          document.getElementById('buildingPageId').value = document.getElementById('bulkBuildingPageId').value;
         }
         const bulkStartVal = getDateInputValue('bulkStartDate');
         if (bulkStartVal && startCal) startCal.setDate(bulkStartVal);
@@ -431,6 +584,7 @@ function setupEventListeners() {
         if (document.getElementById('bulkVisitorType').value) {
           document.getElementById('visitorType').value = document.getElementById('bulkVisitorType').value;
         }
+        syncSharedHostFields('bulk');
 
         document.getElementById('singleTab').style.display = 'block';
         document.getElementById('bulkTab').style.display = 'none';
@@ -439,7 +593,6 @@ function setupEventListeners() {
         if (document.getElementById('buildingSearch').value) {
           document.getElementById('bulkBuildingSearch').value = document.getElementById('buildingSearch').value;
           document.getElementById('bulkBuildingId').value = document.getElementById('buildingId').value;
-          document.getElementById('bulkBuildingPageId').value = document.getElementById('buildingPageId').value;
         }
         const startVal = getDateInputValue('startDate');
         if (startVal && bulkStartCal) bulkStartCal.setDate(startVal);
@@ -454,6 +607,7 @@ function setupEventListeners() {
         if (document.getElementById('visitorType').value) {
           document.getElementById('bulkVisitorType').value = document.getElementById('visitorType').value;
         }
+        syncSharedHostFields('single');
 
         document.getElementById('singleTab').style.display = 'none';
         document.getElementById('bulkTab').style.display = 'block';
@@ -467,8 +621,20 @@ function setupEventListeners() {
   setupInputAutocomplete('email', 'emailSuggestions', 'email');
 
   // Building Search Autocomplete
-  setupBuildingAutocomplete('buildingSearch', 'buildingId', 'buildingPageId', 'buildingSuggestions');
-  setupBuildingAutocomplete('bulkBuildingSearch', 'bulkBuildingId', 'bulkBuildingPageId', 'bulkBuildingSuggestions');
+  setupBuildingAutocomplete('buildingSearch', 'buildingId', 'buildingSuggestions');
+  setupBuildingAutocomplete('bulkBuildingSearch', 'bulkBuildingId', 'bulkBuildingSuggestions');
+
+  // Persist / mirror host phone and shared notes
+  ['hostPhone', 'bulkHostPhone'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      persistHostPhone(el.value);
+      const otherId = id === 'hostPhone' ? 'bulkHostPhone' : 'hostPhone';
+      const other = document.getElementById(otherId);
+      if (other && !other.value) other.value = el.value.trim();
+    });
+  });
 
   // Single Form Submit
   document.getElementById('registrationForm').addEventListener('submit', handleSingleSubmit);
@@ -479,6 +645,21 @@ function setupEventListeners() {
   // Visitor List Filter
   document.getElementById('visitorFilter').addEventListener('input', (e) => {
     renderVisitorList(e.target.value);
+  });
+}
+
+function syncSharedHostFields(from) {
+  const pairs = [
+    ['hostPhone', 'bulkHostPhone'],
+    ['roomNotes', 'bulkRoomNotes'],
+    ['onBehalfOf', 'bulkOnBehalfOf']
+  ];
+  pairs.forEach(([singleId, bulkId]) => {
+    const single = document.getElementById(singleId);
+    const bulk = document.getElementById(bulkId);
+    if (!single || !bulk) return;
+    if (from === 'bulk' && bulk.value) single.value = bulk.value;
+    if (from === 'single' && single.value) bulk.value = single.value;
   });
 }
 
@@ -530,17 +711,15 @@ function setupInputAutocomplete(inputId, suggestionsId, fieldKey) {
             document.getElementById('first').value = guestObj.first;
             document.getElementById('last').value = guestObj.last;
             
-            // Auto-fill building if present in history record
-            if (guestObj.buildingName) {
-              const bInput = document.getElementById('buildingSearch');
-              const bId = document.getElementById('buildingId');
-              const bPageId = document.getElementById('buildingPageId');
-              if (bInput && bId && bPageId) {
-                bInput.value = guestObj.buildingName;
-                bId.value = guestObj.buildingId;
-                bPageId.value = guestObj.buildingPageId;
-              }
-            }
+                // Auto-fill building if present in history record
+                if (guestObj.buildingName) {
+                  const bInput = document.getElementById('buildingSearch');
+                  const bId = document.getElementById('buildingId');
+                  if (bInput && bId) {
+                    bInput.value = guestObj.buildingName;
+                    bId.value = guestObj.buildingId || '';
+                  }
+                }
           }
         }
       });
@@ -557,10 +736,9 @@ function setupInputAutocomplete(inputId, suggestionsId, fieldKey) {
 }
 
 // Building Autocomplete Setup
-function setupBuildingAutocomplete(inputId, idHolderId, pageIdHolderId, suggestionsId) {
+function setupBuildingAutocomplete(inputId, idHolderId, suggestionsId) {
   const input = document.getElementById(inputId);
   const idHolder = document.getElementById(idHolderId);
-  const pageIdHolder = document.getElementById(pageIdHolderId);
   const suggestionsBox = document.getElementById(suggestionsId);
 
   function tryResolveBuilding() {
@@ -582,10 +760,8 @@ function setupBuildingAutocomplete(inputId, idHolderId, pageIdHolderId, suggesti
     };
 
     const resolveFromEntry = (b) => {
-      const displayName = b.BUILDING_NAME || b.building_name || b.BuildingName || b.name || input.value;
-      input.value = displayName;
-      idHolder.value = b.BUILDING_ID || b.building_id || b.BuildingID || b.buildingId || b.id || '';
-      pageIdHolder.value = b.PAGEID || b.PERMSPAGEID || b.pageId || b.PageID || b.pageid || '';
+      input.value = getBuildingName(b) || input.value;
+      idHolder.value = getBuildingId(b);
     };
 
     const exact = state.buildings.find(b => anyFieldMatch(b, val, true));
@@ -604,7 +780,6 @@ function setupBuildingAutocomplete(inputId, idHolderId, pageIdHolderId, suggesti
 
   input.addEventListener('input', () => {
     idHolder.value = '';
-    pageIdHolder.value = '';
 
     const val = input.value.trim().toLowerCase();
     if (val.length < 2) {
@@ -640,22 +815,20 @@ function setupBuildingAutocomplete(inputId, idHolderId, pageIdHolderId, suggesti
       const div = document.createElement('div');
       div.className = 'suggestion-item';
 
-      const name = building.BUILDING_NAME || building.building_name || building.BuildingName || building.name || '';
-      const bldgId = building.BUILDING_ID || building.building_id || building.BuildingID || building.id || '';
-      const pageId = building.PAGEID || building.PERMSPAGEID || building.pageId || building.PageID || building.pageid || '';
-      const addr = building.ADDRESS_SIMPLE || building.address || '';
+      const name = getBuildingName(building);
+      const bldgId = getBuildingId(building);
+      const addr = building.ADDRESS_SIMPLE || building.ADDRESS_ALT || building.address || '';
       const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`(${escapedVal})`, 'gi');
       const displayText = name || addr || JSON.stringify(building).substring(0, 60);
       const highlighted = displayText.replace(regex, '<strong>$1</strong>');
-      const secondaryInfo = name ? (addr ? addr : `ID: ${bldgId}`) : `ID: ${bldgId}`;
+      const secondaryInfo = name ? (addr ? addr.split(' OR ')[0] : `ID: ${bldgId}`) : `ID: ${bldgId}`;
       div.innerHTML = `${highlighted} <span style="font-size: 0.75rem; color: var(--text-muted); float: right;">${secondaryInfo}</span>`;
 
       div.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        input.value = name || addr;
+        input.value = name || addr.split(' OR ')[0];
         idHolder.value = bldgId;
-        pageIdHolder.value = pageId;
         suggestionsBox.style.display = 'none';
       });
       suggestionsBox.appendChild(div);
@@ -681,7 +854,7 @@ async function fetchBuildings() {
   // Try to resolve from window.gBuildingData first
   if (window.gBuildingData && window.gBuildingData.length > 0) {
     state.buildings = window.gBuildingData;
-    console.log('Resolved buildings from window.gBuildingData:', state.buildings.length);
+    console.log('[NYU-ModernReg] Resolved buildings from window.gBuildingData:', state.buildings.length);
     return;
   }
 
@@ -691,13 +864,9 @@ async function fetchBuildings() {
   }
 
   try {
-    // Sync tokens if they are empty in state
-    if (!state.sesstok) state.sesstok = window.__sesstok || '';
-    if (!state.pid) state.pid = window.__pid || '';
+    refreshSessionTokens();
 
-    const resolvedPageID = window.gPageID || 
-                           (document.querySelector('input[name="pageID"]') ? document.querySelector('input[name="pageID"]').value : '') || 
-                           '-1';
+    const resolvedPageID = resolveFormPageId() || '-1';
 
     const payload = {
       __sesstok: state.sesstok,
@@ -717,15 +886,19 @@ async function fetchBuildings() {
     });
 
     if (response.ok) {
-      state.buildings = await response.json();
-      console.log('Successfully fetched buildings:', state.buildings.length);
+      const data = await response.json();
+      state.buildings = Array.isArray(data) ? data : [];
+      if (state.buildings.length) {
+        window.gBuildingData = state.buildings;
+      }
+      console.log('[NYU-ModernReg] Successfully fetched buildings:', state.buildings.length);
     } else {
-      console.error('Failed to fetch buildings:', response.status);
-      state.buildings = getMockBuildings(); // fallback to let autocomplete work
+      console.error('[NYU-ModernReg] Failed to fetch buildings:', response.status);
+      state.buildings = [];
     }
   } catch (err) {
-    console.error('Error fetching buildings:', err);
-    state.buildings = getMockBuildings(); // fallback
+    console.error('[NYU-ModernReg] Error fetching buildings:', err);
+    state.buildings = [];
   }
 }
 
@@ -843,12 +1016,19 @@ async function registerGuest(guestData) {
 
   // Live endpoint registration request
   try {
+    refreshSessionTokens();
+    if (guestData.__sesstok !== state.sesstok && state.sesstok) {
+      guestData.__sesstok = state.sesstok;
+    }
+
     const params = new URLSearchParams();
     for (const key in guestData) {
-      if (Array.isArray(guestData[key])) {
-        guestData[key].forEach(val => params.append(key, val));
+      const val = guestData[key];
+      if (val === undefined || val === null) continue;
+      if (Array.isArray(val)) {
+        val.forEach((item) => params.append(key, item));
       } else {
-        params.append(key, guestData[key]);
+        params.append(key, val);
       }
     }
 
@@ -861,26 +1041,50 @@ async function registerGuest(guestData) {
       body: params.toString()
     });
 
-    if (response.ok) {
-      const resultText = await response.text();
-      let resultJson = {};
-      try {
-        resultJson = JSON.parse(resultText);
-      } catch(e) {
-        if (resultText.includes('success') || resultText.includes('location.href')) {
-          return { success: true };
-        }
+    const resultText = await response.text();
+    // IDENTIGY sometimes prefixes JSON with an HTML marker
+    const jsonText = resultText.includes('<!-- RESULT -->')
+      ? resultText.slice(resultText.indexOf('<!-- RESULT -->') + '<!-- RESULT -->'.length)
+      : resultText;
+
+    let resultJson = null;
+    try {
+      resultJson = JSON.parse(jsonText.trim());
+    } catch (e) {
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status} Error` };
       }
-      
-      if (resultJson.error || resultJson.success === false) {
-        return { success: false, error: resultJson.error || 'Server rejected registration' };
+      if (/success|expected|visitor/i.test(resultText) && !/error|alertmsg|fail/i.test(resultText)) {
+        return { success: true };
       }
-      return { success: true };
-    } else {
-      return { success: false, error: `HTTP ${response.status} Error` };
+      return {
+        success: false,
+        error: 'Unexpected server response (registration may not have completed)'
+      };
     }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: resultJson.Error || resultJson.error || resultJson.AlertMsg || `HTTP ${response.status} Error`
+      };
+    }
+
+    if (resultJson.Error || resultJson.error) {
+      return { success: false, error: resultJson.Error || resultJson.error };
+    }
+    if (resultJson.AlertMsg) {
+      return { success: false, error: resultJson.AlertMsg };
+    }
+    if (resultJson.success === false) {
+      return { success: false, error: resultJson.message || 'Server rejected registration' };
+    }
+    if (resultJson.Redirect) {
+      return { success: true };
+    }
+    return { success: true };
   } catch (err) {
-    console.error('Registration failed:', err);
+    console.error('[NYU-ModernReg] Registration failed:', err);
     return { success: false, error: err.message };
   }
 }
@@ -968,49 +1172,67 @@ async function checkoutGuest(visitid, guestObj) {
   }
 }
 
+function ensureBuildingSelected(searchInputId, idHolderId) {
+  const buildingName = document.getElementById(searchInputId).value.trim();
+  let buildingId = document.getElementById(idHolderId).value;
+
+  if (!buildingId) {
+    if (state.buildings.length === 0 && window.gBuildingData && window.gBuildingData.length > 0) {
+      state.buildings = window.gBuildingData;
+    }
+    const searchVal = buildingName.toLowerCase();
+    const matchField = (b, exact) => {
+      for (const key of Object.keys(b)) {
+        const v = b[key];
+        if (typeof v !== 'string') continue;
+        const lv = v.toLowerCase();
+        if (exact ? lv === searchVal : lv.includes(searchVal)) return true;
+      }
+      return false;
+    };
+    const exact = state.buildings.find((b) => matchField(b, true));
+    const pick = exact || (() => {
+      const partials = state.buildings.filter((b) => matchField(b, false));
+      return partials.length === 1 ? partials[0] : null;
+    })();
+    if (pick) {
+      buildingId = getBuildingId(pick);
+      document.getElementById(searchInputId).value = getBuildingName(pick) || buildingName;
+      document.getElementById(idHolderId).value = buildingId;
+    }
+  }
+
+  return {
+    buildingId,
+    buildingName: document.getElementById(searchInputId).value.trim()
+  };
+}
+
 // Form Handlers: Single Guest Submission
 async function handleSingleSubmit(e) {
   e.preventDefault();
-  
+
   const first = document.getElementById('first').value.trim();
   const last = document.getElementById('last').value.trim();
   const email = document.getElementById('email').value.trim();
   const visitorType = document.getElementById('visitorType').value;
-  const buildingName = document.getElementById('buildingSearch').value.trim();
-  let buildingId = document.getElementById('buildingId').value;
-  let buildingPageId = document.getElementById('buildingPageId').value;
-  
-  if (!buildingId || !buildingPageId) {
-    const searchVal = buildingName.toLowerCase();
-    const exactMatch = state.buildings.find(b => {
-      const name = (b.BUILDING_NAME || '').toLowerCase();
-      const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-      return name === searchVal || addr === searchVal;
-    });
-    if (exactMatch) {
-      buildingId = exactMatch.BUILDING_ID || '';
-      buildingPageId = exactMatch.PAGEID || exactMatch.PERMSPAGEID || '';
-      document.getElementById('buildingSearch').value = exactMatch.BUILDING_NAME || '';
-      document.getElementById('buildingId').value = buildingId;
-      document.getElementById('buildingPageId').value = buildingPageId;
-    } else {
-      const matches = state.buildings.filter(b => {
-        const name = (b.BUILDING_NAME || '').toLowerCase();
-        const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-        return name.includes(searchVal) || addr.includes(searchVal);
-      });
-      if (matches.length === 1) {
-        buildingId = matches[0].BUILDING_ID || '';
-        buildingPageId = matches[0].PAGEID || matches[0].PERMSPAGEID || '';
-        document.getElementById('buildingSearch').value = matches[0].BUILDING_NAME || '';
-        document.getElementById('buildingId').value = buildingId;
-        document.getElementById('buildingPageId').value = buildingPageId;
-      }
-    }
+  const hostPhone = document.getElementById('hostPhone').value.trim();
+  const roomNotes = (document.getElementById('roomNotes')?.value || '').trim();
+  const onBehalfOf = (document.getElementById('onBehalfOf')?.value || '').trim();
+
+  if (!hostPhone) {
+    showToast('Host phone number is required by NYU JRNY', 'error');
+    return;
   }
 
-  if (!buildingId || !buildingPageId) {
+  const { buildingId, buildingName } = ensureBuildingSelected('buildingSearch', 'buildingId');
+  if (!buildingId) {
     showToast('Please select a valid NYU building from the suggestions', 'error');
+    return;
+  }
+
+  if (!resolveFormPageId() && !state.isMockMode) {
+    showToast('Portal session page ID missing — refresh the NYU page and try again', 'error');
     return;
   }
 
@@ -1021,44 +1243,40 @@ async function handleSingleSubmit(e) {
 
   const entryDateRaw = new Date(`${startDate}T${startTime}`);
   const exitDateRaw = new Date(`${endDate}T${endTime}`);
-  
-  if (exitDateRaw <= entryDateRaw) {
-    showToast('Departure time must be after arrival time', 'error');
+
+  const stayError = validateStayWindow(entryDateRaw, exitDateRaw);
+  if (stayError) {
+    showToast(stayError, 'error');
     return;
   }
 
-  const tzOffsetHours = String(new Date().getTimezoneOffset() / 60);
+  const payload = buildRegistrationPayload({
+    first,
+    last,
+    email,
+    visitorType,
+    buildingId,
+    buildingName,
+    hostPhone,
+    roomNotes,
+    onBehalfOf,
+    entryDateRaw,
+    exitDateRaw
+  });
 
-  const payload = {
-    action: 'Register',
-    __sesstok: state.sesstok,
-    first: first,
-    last: last,
-    local_VisitorType: visitorType,
-    local_cdEmail: email,
-    'pageID[]': buildingPageId,
-    buildingID1: buildingId,
-    buildingName1: buildingName,
-    client_tz: tzOffsetHours,
-    entryDate: formatApiDate(entryDateRaw),
-    exitDate: formatApiDate(exitDateRaw),
-    approvedIds: '[]'
-  };
-
+  persistHostPhone(hostPhone);
   showToast('Submitting guest registration...', 'info');
 
   const res = await registerGuest(payload);
-  
+
   if (res.success) {
     showToast(`Registered ${first} ${last} successfully!`, 'success');
-    saveGuestToHistory(first, last, email, buildingName, buildingId, buildingPageId);
-    
-    // Clear form except building & date preferences
+    saveGuestToHistory(first, last, email, buildingName, buildingId, '');
+
     document.getElementById('first').value = '';
     document.getElementById('last').value = '';
     document.getElementById('email').value = '';
-    
-    // Refresh list
+
     if (state.isMockMode) {
       syncVisitors();
     } else {
@@ -1073,66 +1291,36 @@ async function handleSingleSubmit(e) {
 async function handleBulkSubmit() {
   const pasteData = document.getElementById('bulkPaste').value.trim();
   const visitorType = document.getElementById('bulkVisitorType').value;
-  const buildingName = document.getElementById('bulkBuildingSearch').value.trim();
-  let buildingId = document.getElementById('bulkBuildingId').value;
-  let buildingPageId = document.getElementById('bulkBuildingPageId').value;
-  
-  if (!buildingId || !buildingPageId) {
-    if (state.buildings.length === 0) {
-      if (window.gBuildingData && window.gBuildingData.length > 0) {
-        state.buildings = window.gBuildingData;
-      } else {
-        await fetchBuildings();
-      }
-    }
-
-    const searchVal = buildingName.toLowerCase();
-    const allStringValsMatch = (b, sv, exact) => {
-      for (const key of Object.keys(b)) {
-        const v = b[key];
-        if (typeof v === 'string') {
-          if (exact ? v.toLowerCase() === sv : v.toLowerCase().includes(sv)) return true;
-        }
-      }
-      return false;
-    };
-
-    const resolveBldg = (b) => {
-      buildingId = b.BUILDING_ID || b.building_id || b.BuildingID || b.buildingId || b.id || '';
-      buildingPageId = b.PAGEID || b.PERMSPAGEID || b.pageId || b.PageID || b.pageid || '';
-      const displayName = b.BUILDING_NAME || b.building_name || b.BuildingName || b.name || buildingName;
-      document.getElementById('bulkBuildingSearch').value = displayName;
-      document.getElementById('bulkBuildingId').value = buildingId;
-      document.getElementById('bulkBuildingPageId').value = buildingPageId;
-    };
-
-    const exact = state.buildings.find(b => allStringValsMatch(b, searchVal, true));
-    if (exact) {
-      resolveBldg(exact);
-    } else {
-      const partials = state.buildings.filter(b => allStringValsMatch(b, searchVal, false));
-      if (partials.length === 1) {
-        resolveBldg(partials[0]);
-      } else if (partials.length > 1) {
-        const startsWith = partials.filter(b => {
-          for (const key of Object.keys(b)) {
-            const v = b[key];
-            if (typeof v === 'string' && v.toLowerCase().startsWith(searchVal)) return true;
-          }
-          return false;
-        });
-        resolveBldg(startsWith.length === 1 ? startsWith[0] : partials[0]);
-      }
-    }
-  }
+  const hostPhone = (document.getElementById('bulkHostPhone')?.value || '').trim();
+  const roomNotes = (document.getElementById('bulkRoomNotes')?.value || '').trim();
+  const onBehalfOf = (document.getElementById('bulkOnBehalfOf')?.value || '').trim();
 
   if (!pasteData) {
     showToast('Please paste visitor details', 'error');
     return;
   }
 
-  if (!buildingId || !buildingPageId) {
+  if (!hostPhone) {
+    showToast('Host phone number is required by NYU JRNY', 'error');
+    return;
+  }
+
+  if (state.buildings.length === 0) {
+    if (window.gBuildingData && window.gBuildingData.length > 0) {
+      state.buildings = window.gBuildingData;
+    } else {
+      await fetchBuildings();
+    }
+  }
+
+  const { buildingId, buildingName } = ensureBuildingSelected('bulkBuildingSearch', 'bulkBuildingId');
+  if (!buildingId) {
     showToast('Please select an NYU building from the suggestions', 'error');
+    return;
+  }
+
+  if (!resolveFormPageId() && !state.isMockMode) {
+    showToast('Portal session page ID missing — refresh the NYU page and try again', 'error');
     return;
   }
 
@@ -1143,9 +1331,10 @@ async function handleBulkSubmit() {
 
   const entryDateRaw = new Date(`${startDate}T${startTime}`);
   const exitDateRaw = new Date(`${endDate}T${endTime}`);
-  
-  if (exitDateRaw <= entryDateRaw) {
-    showToast('Departure time must be after arrival time', 'error');
+
+  const stayError = validateStayWindow(entryDateRaw, exitDateRaw);
+  if (stayError) {
+    showToast(stayError, 'error');
     return;
   }
 
@@ -1159,7 +1348,6 @@ async function handleBulkSubmit() {
   queueContainer.innerHTML = '';
   queueContainer.style.display = 'block';
 
-  // Create queue elements
   const queueItems = guests.map((guest, idx) => {
     const div = document.createElement('div');
     div.className = 'queue-item';
@@ -1171,53 +1359,54 @@ async function handleBulkSubmit() {
     return { ...guest, statusSpanId: `queue-${idx}` };
   });
 
+  persistHostPhone(hostPhone);
   showToast(`Beginning registration of ${guests.length} visitors...`, 'info');
-  const tzOffsetHours = String(new Date().getTimezoneOffset() / 60);
 
-  // Register guests sequentially
+  let successCount = 0;
   for (let i = 0; i < queueItems.length; i++) {
     const item = queueItems[i];
     const statusSpan = document.getElementById(item.statusSpanId);
-    
+
     statusSpan.className = 'queue-status status-sending';
     statusSpan.innerHTML = 'Sending...';
 
-    const payload = {
-      action: 'Register',
-      __sesstok: state.sesstok,
+    const payload = buildRegistrationPayload({
       first: item.first,
       last: item.last,
-      local_VisitorType: visitorType,
-      local_cdEmail: item.email,
-      'pageID[]': buildingPageId,
-      buildingID1: buildingId,
-      buildingName1: buildingName,
-      client_tz: tzOffsetHours,
-      entryDate: formatApiDate(entryDateRaw),
-      exitDate: formatApiDate(exitDateRaw),
-      approvedIds: '[]'
-    };
+      email: item.email,
+      visitorType,
+      buildingId,
+      buildingName,
+      hostPhone,
+      roomNotes,
+      onBehalfOf,
+      entryDateRaw,
+      exitDateRaw
+    });
 
     const res = await registerGuest(payload);
 
     if (res.success) {
+      successCount += 1;
       statusSpan.className = 'queue-status status-success';
       statusSpan.innerHTML = '✓ Success';
-      saveGuestToHistory(item.first, item.last, item.email, buildingName, buildingId, buildingPageId);
+      saveGuestToHistory(item.first, item.last, item.email, buildingName, buildingId, '');
     } else {
       statusSpan.className = 'queue-status status-failed';
       statusSpan.innerHTML = `✗ Failed: ${res.error || 'Server error'}`;
     }
-    
-    // Pause briefly between calls
+
     await new Promise(resolve => setTimeout(resolve, 300));
   }
 
-  showToast('Bulk registration process finished', 'success');
+  showToast(
+    `Bulk registration finished: ${successCount}/${guests.length} succeeded`,
+    successCount === guests.length ? 'success' : 'warning'
+  );
   document.getElementById('bulkPaste').value = '';
   if (state.isMockMode) {
     syncVisitors();
-  } else {
+  } else if (successCount > 0) {
     setTimeout(() => window.location.reload(), 1500);
   }
 }
@@ -1364,11 +1553,13 @@ function renderVisitorList(filterText = '') {
       document.getElementById('last').value = visitor.last;
       document.getElementById('email').value = visitor.email;
       
-      const matchingB = state.buildings.find(b => b.BUILDING_NAME.includes(visitor.buildingName) || visitor.buildingName.includes(b.BUILDING_NAME));
+      const matchingB = state.buildings.find((b) => {
+        const name = getBuildingName(b);
+        return name && (name.includes(visitor.buildingName) || visitor.buildingName.includes(name));
+      });
       if (matchingB) {
-        document.getElementById('buildingSearch').value = matchingB.BUILDING_NAME;
-        document.getElementById('buildingId').value = matchingB.BUILDING_ID;
-        document.getElementById('buildingPageId').value = matchingB.PAGEID || matchingB.PERMSPAGEID || '';
+        document.getElementById('buildingSearch').value = getBuildingName(matchingB);
+        document.getElementById('buildingId').value = getBuildingId(matchingB);
       }
       
       document.querySelector('.tab-btn[data-tab="single"]').click();
@@ -1452,12 +1643,12 @@ function showToast(message, type = 'info') {
 // Mock Data Generators
 function getMockBuildings() {
   return [
-    { BUILDING_ID: '28', BUILDING_NAME: '60 5th Ave (Center for Data Science)', ADDRESS_SIMPLE: '60 5th Ave', PAGEID: 'Jcc7bRea8eN4861Y' },
-    { BUILDING_ID: '102', BUILDING_NAME: 'Elmer Holmes Bobst Library', ADDRESS_SIMPLE: '70 Washington Square S', PAGEID: 'A182bRea8eN4861Y' },
-    { BUILDING_ID: '45', BUILDING_NAME: 'Warren Weaver Hall (Courant Institute)', ADDRESS_SIMPLE: '251 Mercer St', PAGEID: 'Wcc7bRea8eN4861Y' },
-    { BUILDING_ID: '15', BUILDING_NAME: 'Tisch Hall (Stern School of Business)', ADDRESS_SIMPLE: '40 West 4th St', PAGEID: 'Tcc7bRea8eN4861Y' },
-    { BUILDING_ID: '88', BUILDING_NAME: 'Kimmel Center for University Life', ADDRESS_SIMPLE: '60 Washington Square S', PAGEID: 'Kcc7bRea8eN4861Y' },
-    { BUILDING_ID: '201', BUILDING_NAME: '370 Jay Street (NYU Tandon)', ADDRESS_SIMPLE: '370 Jay St', PAGEID: 'J201bRea8eN4861Y' }
+    { BUILDING_ID: 'B-60FAV', BUILDING_NAME: '60 Fifth Avenue', ADDRESS_SIMPLE: 'Forbes Building, New York, United States, 10011', ADDRESS_ALT: '60 Fifth Avenue, New York, United States, 10011', PAGEID: '', PERMSPAGEID: 'H118' },
+    { BUILDING_ID: 'B-BOBST', BUILDING_NAME: 'Elmer Holmes Bobst Library', ADDRESS_SIMPLE: '70 Washington Square S, New York, United States, 10012', PAGEID: '', PERMSPAGEID: 'H118' },
+    { BUILDING_ID: 'B-WWH', BUILDING_NAME: 'Warren Weaver Hall', ADDRESS_SIMPLE: '251 Mercer St, New York, United States, 10012', PAGEID: '', PERMSPAGEID: 'H118' },
+    { BUILDING_ID: 'B-TISCH', BUILDING_NAME: 'Tisch Hall', ADDRESS_SIMPLE: '40 West 4th St, New York, United States, 10012', PAGEID: '', PERMSPAGEID: 'H118' },
+    { BUILDING_ID: 'B-KIMMEL', BUILDING_NAME: 'Kimmel Center for University Life', ADDRESS_SIMPLE: '60 Washington Square S, New York, United States, 10012', PAGEID: '', PERMSPAGEID: 'H118' },
+    { BUILDING_ID: 'B-370JAY', BUILDING_NAME: '370 Jay Street', ADDRESS_SIMPLE: '370 Jay St, Brooklyn, United States, 11201', PAGEID: '', PERMSPAGEID: 'H118' }
   ];
 }
 
