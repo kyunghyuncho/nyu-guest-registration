@@ -873,7 +873,10 @@ async function registerGuest(guestData) {
       if (!response.ok) {
         return { success: false, error: `HTTP ${response.status} Error` };
       }
-      if (/success|expected|visitor/i.test(resultText) && !/error|alertmsg|fail/i.test(resultText)) {
+      // Non-JSON bodies are only treated as success for known redirect/script replies.
+      // Do not match loose words like "visitor" — error HTML pages often contain them.
+      const trimmed = resultText.trim();
+      if (/location\.href\s*=/i.test(trimmed) || /window\.location\s*=/i.test(trimmed)) {
         return { success: true };
       }
       return {
@@ -889,6 +892,7 @@ async function registerGuest(guestData) {
       };
     }
 
+    // Match IDENTIGY requestJson semantics: Error / AlertMsg reject; Redirect navigates.
     if (resultJson.Error || resultJson.error) {
       return { success: false, error: resultJson.Error || resultJson.error };
     }
@@ -897,9 +901,6 @@ async function registerGuest(guestData) {
     }
     if (resultJson.success === false) {
       return { success: false, error: resultJson.message || 'Server rejected registration' };
-    }
-    if (resultJson.Redirect) {
-      return { success: true };
     }
     return { success: true };
   } catch (err) {
