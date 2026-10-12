@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const VERSION = '1.0';
+const VERSION = '1.2';
 const INSTALL_URL =
   'https://github.com/kyunghyuncho/nyu-guest-registration/raw/main/NYU-Modern-Guest-Registration.user.js';
 
@@ -87,7 +87,7 @@ function extractAppLogic() {
     ''
   );
 
-  return `${withoutStandaloneBootstrap.trim()}\n\n    // Bootstrap (live portal)\n    state.isMockMode = false;\n    if (!state.sesstok) state.sesstok = window.__sesstok || '';\n    if (!state.pid) state.pid = window.__pid || '';\n    if (!state.uhash) state.uhash = window.__uhash || '';\n\n    initTheme();\n    initDatePickers();\n    loadLocalStorageData();\n    setupEventListeners();\n\n    fetchBuildings().then(() => syncVisitors());`;
+  return `${withoutStandaloneBootstrap.trim()}\n\n    // Bootstrap (live portal)\n    state.isMockMode = false;\n    refreshSessionTokens();\n\n    initTheme();\n    initDatePickers();\n    loadLocalStorageData();\n    setupEventListeners();\n\n    const start = () => fetchBuildings().then(() => syncVisitors());\n    if (window.__sesstok && window.gPageID) {\n      start();\n    } else {\n      // Portal globals can land slightly after document-end\n      let tries = 0;\n      const wait = setInterval(() => {\n        tries += 1;\n        refreshSessionTokens();\n        if ((window.__sesstok && window.gPageID) || tries >= 40) {\n          clearInterval(wait);\n          start();\n        }\n      }, 100);\n    }`;
 }
 
 function buildUserscript() {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYU Modern Guest Registration
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.2
 // @description  A modern front-end overlay for the NYU visitor registration portal.
 // @author       Kyunghyun Cho
 // @updateURL    https://github.com/kyunghyuncho/nyu-guest-registration/raw/main/NYU-Modern-Guest-Registration.user.js
@@ -13,7 +13,7 @@
 
 (function() {
   'use strict';
-  const SCRIPT_VERSION = '1.0';
+  const SCRIPT_VERSION = '1.2';
   console.log(`[NYU-ModernReg] v${SCRIPT_VERSION} loaded`);
 
   const cssStyles = `
@@ -891,170 +891,95 @@ body.light-theme .toast.info svg {
       <!-- Left Column: Registration controls -->
       <div>
         <div class="modern-panel">
-          <!-- Form Tabs -->
-          <div class="tabs">
-            <button class="tab-btn active" data-tab="single">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-              Single Guest
-            </button>
-            <button class="tab-btn" data-tab="bulk">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              Bulk Upload
-            </button>
+          <div class="section-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Register Guests
           </div>
 
-          <!-- Tab 1: Single Guest Registration -->
-          <div id="singleTab" class="tab-content">
-            <form id="registrationForm" autocomplete="off">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="first">First Name *</label>
-                  <input type="text" id="first" required placeholder="John">
-                  <div id="firstSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
-                </div>
-                <div class="form-group">
-                  <label for="last">Last Name *</label>
-                  <input type="text" id="last" required placeholder="Doe">
-                  <div id="lastSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
-                </div>
-              </div>
+          <div class="bulk-container">
+            <div class="bulk-help">
+              Paste one or more guests (one per line). Works for a single visitor too.<br>
+              • <code>First Last, email@domain.com</code><br>
+              • <code>First, Last, email@domain.com</code><br>
+              • <code>First Last &lt;email@domain.com&gt;</code>
+            </div>
 
-              <div class="form-group">
-                <label for="email">Email Address *</label>
-                <input type="email" id="email" required placeholder="john.doe@example.com">
-                <div id="emailSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
-              </div>
+            <div class="form-group">
+              <label for="guestPaste">Guests *</label>
+              <textarea id="guestPaste" rows="6" placeholder="Jane Doe, jane@nyu.edu&#10;Bob Smith, bob@gmail.com"></textarea>
+            </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="visitorType">Visitor Type</label>
-                  <select id="visitorType">
-                    <option value="Visitor">Visitor</option>
-                    <option value="Vendor">Vendor</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="buildingSearch">NYU Building *</label>
-                  <input type="text" id="buildingSearch" required placeholder="Search building (e.g. 60 5th...)">
-                  <input type="hidden" id="buildingId">
-                  <input type="hidden" id="buildingPageId">
-                  <div id="buildingSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="startDate">Arrival Date</label>
-                  <div class="date-input-wrapper">
-                    <input type="text" id="startDate" readonly required placeholder="Select date...">
-                    <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="startTime">Arrival Time</label>
-                  <input type="time" id="startTime" value="09:00" required>
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="endDate">Departure Date</label>
-                  <div class="date-input-wrapper">
-                    <input type="text" id="endDate" readonly required placeholder="Select date...">
-                    <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="endTime">Departure Time</label>
-                  <input type="time" id="endTime" value="17:00" required>
-                </div>
-              </div>
-
-              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                Preregister Visitor
-              </button>
-            </form>
-
-            <!-- Quick Duplicator Chip Dock -->
             <div class="quick-dup-section" id="quickDupSection" style="display: none;">
-              <div class="quick-dup-title">Frequently Registered</div>
-              <div class="quick-dup-list" id="quickDupList">
-                <!-- Chips will be generated here -->
-              </div>
+              <div class="quick-dup-title">Frequently Registered — click to add a row</div>
+              <div class="quick-dup-list" id="quickDupList"></div>
             </div>
-          </div>
 
-          <!-- Tab 2: Bulk Guest Registration -->
-          <div id="bulkTab" class="tab-content" style="display: none;">
-            <div class="bulk-container">
-              <div class="bulk-help">
-                <strong>No CSV files required.</strong> Simply paste visitor rows directly. Supports formats:<br>
-                • <code>First Last, email@domain.com</code><br>
-                • <code>First, Last, email@domain.com</code><br>
-                • <code>First Last &lt;email@domain.com&gt;</code> (e.g. copied from Outlook/Gmail)
-              </div>
-              
+            <div class="form-row">
               <div class="form-group">
-                <label for="bulkPaste">Visitor Rows</label>
-                <textarea id="bulkPaste" rows="6" placeholder="Jane Doe, jane@nyu.edu&#10;Bob Smith, bob@gmail.com"></textarea>
+                <label for="hostPhone">Host Phone Number *</label>
+                <input type="tel" id="hostPhone" required placeholder="e.g. 212-998-0000" autocomplete="tel">
               </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="bulkBuildingSearch">NYU Building *</label>
-                  <input type="text" id="bulkBuildingSearch" placeholder="Search building for all guests...">
-                  <input type="hidden" id="bulkBuildingId">
-                  <input type="hidden" id="bulkBuildingPageId">
-                  <div id="bulkBuildingSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
-                </div>
-                <div class="form-group">
-                  <label for="bulkVisitorType">Visitor Type</label>
-                  <select id="bulkVisitorType">
-                    <option value="Visitor">Visitor</option>
-                    <option value="Vendor">Vendor</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="bulkStartDate">Arrival Date</label>
-                  <div class="date-input-wrapper">
-                    <input type="text" id="bulkStartDate" readonly placeholder="Select date...">
-                    <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="bulkStartTime">Arrival Time</label>
-                  <input type="time" id="bulkStartTime" value="09:00">
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="bulkEndDate">Departure Date</label>
-                  <div class="date-input-wrapper">
-                    <input type="text" id="bulkEndDate" readonly placeholder="Select date...">
-                    <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="bulkEndTime">Departure Time</label>
-                  <input type="time" id="bulkEndTime" value="17:00">
-                </div>
-              </div>
-
-              <button id="btnRegisterBulk" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-                Register Batch
-              </button>
-
-              <!-- Queue list/logs for bulk registration -->
-              <div class="queue-list" id="bulkQueue" style="display: none;">
-                <!-- Queue entries will appear here -->
+              <div class="form-group">
+                <label for="visitorType">Visitor Type</label>
+                <select id="visitorType">
+                  <option value="Visitor">Visitor</option>
+                  <option value="Vendor">Vendor</option>
+                </select>
               </div>
             </div>
+
+            <div class="form-group">
+              <label for="buildingSearch">NYU Building *</label>
+              <input type="text" id="buildingSearch" required placeholder="Search building (e.g. 60 Fifth...)">
+              <input type="hidden" id="buildingId">
+              <div id="buildingSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="roomNotes">Office / Room / Notes</label>
+                <input type="text" id="roomNotes" placeholder="Optional room number or extra info">
+              </div>
+              <div class="form-group">
+                <label for="onBehalfOf">On behalf of host</label>
+                <input type="text" id="onBehalfOf" placeholder="Optional">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="startDate">Arrival Date</label>
+                <div class="date-input-wrapper">
+                  <input type="text" id="startDate" readonly required placeholder="Select date...">
+                  <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="startTime">Arrival Time</label>
+                <input type="time" id="startTime" value="09:00" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="endDate">Departure Date</label>
+                <div class="date-input-wrapper">
+                  <input type="text" id="endDate" readonly required placeholder="Select date...">
+                  <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="endTime">Departure Time</label>
+                <input type="time" id="endTime" value="17:00" required>
+              </div>
+            </div>
+
+            <button id="btnRegister" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+              Register Guests
+            </button>
+
+            <div class="queue-list" id="guestQueue" style="display: none;"></div>
           </div>
         </div>
       </div>
@@ -1136,10 +1061,14 @@ body.light-theme .toast.info svg {
       isMockMode: false,
       sesstok: '',
       pid: '',
-      uhash: ''
+      uhash: '',
+      pageId: '',
+      maxDays: 90
     };
 
-    let startCal, endCal, bulkStartCal, bulkEndCal;
+    const HOST_PHONE_STORAGE_KEY = 'nyu-visitor-host-phone';
+
+    let startCal, endCal;
 
     const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -1148,18 +1077,124 @@ body.light-theme .toast.info svg {
     function checkEnvironment() {
       const isLive = window.location.hostname.includes('identigy.io');
       state.isMockMode = !isLive;
-      
+
       if (isLive) {
-        // Read global variables injected in the page <head>
-        state.sesstok = window.__sesstok || '';
-        state.pid = window.__pid || '';
-        state.uhash = window.__uhash || '';
+        refreshSessionTokens();
       } else {
         // Generate dummy tokens for local mockup
         state.sesstok = 'mock_sesstok_123456';
         state.pid = '51031';
         state.uhash = 'mock_uhash_abcdef';
+        state.pageId = 'mock_pageid';
+        state.maxDays = 90;
       }
+    }
+
+    function refreshSessionTokens() {
+      state.sesstok = window.__sesstok || state.sesstok || '';
+      state.pid = window.__pid || state.pid || '';
+      state.uhash = window.__uhash || state.uhash || '';
+      if (typeof window.__maxDays === 'number' && window.__maxDays > 0) {
+        state.maxDays = window.__maxDays;
+      }
+      state.pageId = resolveFormPageId();
+    }
+
+    /** Portal form pageID (gPageID), NOT building.PAGEID / PERMSPAGEID. */
+    function resolveFormPageId() {
+      const fromInput =
+        document.querySelector('#original-identigy-content input[name="pageID"]') ||
+        document.querySelector('input[name="pageID"]');
+      return (
+        window.gPageID ||
+        (fromInput && fromInput.value) ||
+        state.pageId ||
+        ''
+      );
+    }
+
+    function getBuildingId(building) {
+      return (
+        building.BUILDING_ID ||
+        building.building_id ||
+        building.BuildingID ||
+        building.buildingId ||
+        building.id ||
+        ''
+      );
+    }
+
+    function getBuildingName(building) {
+      return (
+        building.BUILDING_NAME ||
+        building.building_name ||
+        building.BuildingName ||
+        building.name ||
+        ''
+      );
+    }
+
+    function addDaysISO(isoStr, days) {
+      const [y, m, d] = isoStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + days);
+      return toISO(dt);
+    }
+
+    function validateStayWindow(entryDateRaw, exitDateRaw) {
+      if (exitDateRaw <= entryDateRaw) {
+        return 'Departure time must be after arrival time';
+      }
+      const maxMs = state.maxDays * 24 * 60 * 60 * 1000;
+      if (exitDateRaw.getTime() - entryDateRaw.getTime() > maxMs) {
+        return `Visit length cannot exceed ${state.maxDays} days (JRNY limit)`;
+      }
+      return '';
+    }
+
+    function buildRegistrationPayload({
+      first,
+      last,
+      email,
+      visitorType,
+      buildingId,
+      buildingName,
+      hostPhone,
+      roomNotes = '',
+      onBehalfOf = '',
+      entryDateRaw,
+      exitDateRaw
+    }) {
+      refreshSessionTokens();
+      const formPageId = resolveFormPageId();
+      const tzOffsetHours = String(new Date().getTimezoneOffset() / 60);
+
+      const payload = {
+        action: 'Register',
+        __sesstok: state.sesstok,
+        first,
+        last,
+        local_VisitorType: visitorType,
+        local_cdEmail: email,
+        local_HostPhoneVisit: hostPhone,
+        buildingID1: buildingId,
+        buildingName1: buildingName,
+        client_tz: tzOffsetHours,
+        entryDate: formatApiDate(entryDateRaw),
+        exitDate: formatApiDate(exitDateRaw)
+      };
+
+      if (formPageId) {
+        payload['pageID[]'] = formPageId;
+      }
+      if (roomNotes) {
+        payload.buildingRoomNumber1 = roomNotes;
+      }
+      if (onBehalfOf) {
+        payload.local_onBehalfOfHost = onBehalfOf;
+      }
+
+      return payload;
     }
 
     // Theme Management
@@ -1217,13 +1252,14 @@ body.light-theme .toast.info svg {
       const wrapper = inputEl.closest('.date-input-wrapper');
       if (!wrapper) {
         console.warn('[NYU-ModernReg] date input missing .date-input-wrapper parent:', inputEl.id);
-        return { setDate: () => {}, setMinDate: () => {}, getDate: () => '' };
+        return { setDate: () => {}, setMinDate: () => {}, setMaxDate: () => {}, getDate: () => '' };
       }
 
       let currentMonth = new Date().getMonth();
       let currentYear = new Date().getFullYear();
       let selectedISO = opts.initial || '';
       let minISO = opts.minDate || '';
+      let maxISO = opts.maxDate || '';
       let popup = null;
       let isOpen = false;
       let outsideHandler = null;
@@ -1242,6 +1278,13 @@ body.light-theme .toast.info svg {
         }
       }
 
+      function setMaxDate(iso) {
+        maxISO = iso;
+        if (selectedISO && maxISO && selectedISO > maxISO) {
+          setDate(maxISO);
+        }
+      }
+
       function positionPopup() {
         if (!popup) return;
         const rect = inputEl.getBoundingClientRect();
@@ -1254,35 +1297,37 @@ body.light-theme .toast.info svg {
 
       function renderCalendar() {
         if (!popup) return;
-        const todayISO = toISO(new Date());
-        const minD = minISO || '';
+            const todayISO = toISO(new Date());
+            const minD = minISO || '';
+            const maxD = maxISO || '';
 
-        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-        const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
 
-        let html = `<div class="cal-header">
-          <button type="button" class="cal-prev">‹</button>
-          <span class="cal-title">${MONTHS[currentMonth]} ${currentYear}</span>
-          <button type="button" class="cal-next">›</button>
-        </div>
-        <div class="cal-grid">`;
+            let html = `<div class="cal-header">
+              <button type="button" class="cal-prev">‹</button>
+              <span class="cal-title">${MONTHS[currentMonth]} ${currentYear}</span>
+              <button type="button" class="cal-next">›</button>
+            </div>
+            <div class="cal-grid">`;
 
-        DAYS.forEach(d => { html += `<span class="cal-dow">${d}</span>`; });
+            DAYS.forEach(d => { html += `<span class="cal-dow">${d}</span>`; });
 
-        for (let i = firstDay - 1; i >= 0; i--) {
-          const day = daysInPrevMonth - i;
-          html += `<button type="button" class="cal-day other-month disabled" disabled>${day}</button>`;
-        }
+            for (let i = firstDay - 1; i >= 0; i--) {
+              const day = daysInPrevMonth - i;
+              html += `<button type="button" class="cal-day other-month disabled" disabled>${day}</button>`;
+            }
 
-        for (let day = 1; day <= daysInMonth; day++) {
-          const iso = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const classes = [];
-          if (iso === todayISO) classes.push('today');
-          if (iso === selectedISO) classes.push('selected');
-          if (minD && iso < minD) classes.push('disabled');
-          html += `<button type="button" class="cal-day ${classes.join(' ')}" data-iso="${iso}" ${minD && iso < minD ? 'disabled' : ''}>${day}</button>`;
-        }
+            for (let day = 1; day <= daysInMonth; day++) {
+              const iso = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const classes = [];
+              if (iso === todayISO) classes.push('today');
+              if (iso === selectedISO) classes.push('selected');
+              const outOfRange = (minD && iso < minD) || (maxD && iso > maxD);
+              if (outOfRange) classes.push('disabled');
+              html += `<button type="button" class="cal-day ${classes.join(' ')}" data-iso="${iso}" ${outOfRange ? 'disabled' : ''}>${day}</button>`;
+            }
 
         const totalCells = firstDay + daysInMonth;
         const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
@@ -1382,41 +1427,35 @@ body.light-theme .toast.info svg {
         if (isOpen) positionPopup();
       }, true);
 
-      return { setDate, setMinDate, getDate: () => selectedISO, close };
+      return { setDate, setMinDate, setMaxDate, getDate: () => selectedISO, close };
     }
 
     function initDatePickers() {
       const todayISO = toISO(new Date());
+      const maxISO = addDaysISO(todayISO, state.maxDays);
 
-      startCal = createCalendarPicker(document.getElementById('startDate'), { initial: todayISO, minDate: todayISO });
-      endCal = createCalendarPicker(document.getElementById('endDate'), { initial: todayISO, minDate: todayISO });
+      startCal = createCalendarPicker(document.getElementById('startDate'), {
+        initial: todayISO,
+        minDate: todayISO,
+        maxDate: maxISO
+      });
+      endCal = createCalendarPicker(document.getElementById('endDate'), {
+        initial: todayISO,
+        minDate: todayISO,
+        maxDate: maxISO
+      });
       startCal.setDate(todayISO);
       endCal.setDate(todayISO);
 
       document.getElementById('startDate').addEventListener('change', () => {
         const newStart = document.getElementById('startDate').dataset.isoValue;
         if (newStart) {
+          const startMax = addDaysISO(newStart, state.maxDays);
           endCal.setMinDate(newStart);
+          if (typeof endCal.setMaxDate === 'function') endCal.setMaxDate(startMax);
           endCal.setDate(newStart);
         }
       });
-
-      const bulkStartEl = document.getElementById('bulkStartDate');
-      const bulkEndEl = document.getElementById('bulkEndDate');
-      if (bulkStartEl && bulkEndEl) {
-        bulkStartCal = createCalendarPicker(bulkStartEl, { initial: todayISO, minDate: todayISO });
-        bulkEndCal = createCalendarPicker(bulkEndEl, { initial: todayISO, minDate: todayISO });
-        bulkStartCal.setDate(todayISO);
-        bulkEndCal.setDate(todayISO);
-
-        bulkStartEl.addEventListener('change', () => {
-          const newStart = bulkStartEl.dataset.isoValue;
-          if (newStart) {
-            bulkEndCal.setMinDate(newStart);
-            bulkEndCal.setDate(newStart);
-          }
-        });
-      }
     }
 
     // Local Storage & History Caching
@@ -1425,11 +1464,22 @@ body.light-theme .toast.info svg {
       const savedHistory = localStorage.getItem('nyu-visitor-history');
       state.history = savedHistory ? JSON.parse(savedHistory) : [];
       renderQuickDupChips();
-      
+
+      const savedPhone = localStorage.getItem(HOST_PHONE_STORAGE_KEY) || '';
+      const phoneEl = document.getElementById('hostPhone');
+      if (phoneEl && savedPhone) phoneEl.value = savedPhone;
+
       // Load mock registrations if in mock mode
       if (state.isMockMode) {
         const savedRegs = localStorage.getItem('nyu-mock-registrations');
         state.registeredVisitors = savedRegs ? JSON.parse(savedRegs) : getMockRegisteredVisitors();
+      }
+    }
+
+    function persistHostPhone(phone) {
+      const trimmed = (phone || '').trim();
+      if (trimmed) {
+        localStorage.setItem(HOST_PHONE_STORAGE_KEY, trimmed);
       }
     }
 
@@ -1499,181 +1549,53 @@ body.light-theme .toast.info svg {
       });
     }
 
+    function appendGuestRow(first, last, email) {
+      const paste = document.getElementById('guestPaste');
+      if (!paste) return;
+      const line = `${first} ${last}, ${email}`.trim();
+      paste.value = paste.value.trim() ? `${paste.value.trim()}\n${line}` : line;
+      paste.focus();
+    }
+
     function populateFormWithGuest(guest) {
-      document.getElementById('first').value = guest.first;
-      document.getElementById('last').value = guest.last;
-      document.getElementById('email').value = guest.email;
-      showToast(`Loaded ${guest.first} ${guest.last}'s details`, 'success');
+      appendGuestRow(guest.first, guest.last, guest.email);
+      if (guest.buildingName) {
+        const bInput = document.getElementById('buildingSearch');
+        const bId = document.getElementById('buildingId');
+        if (bInput && bId) {
+          bInput.value = guest.buildingName;
+          bId.value = guest.buildingId || '';
+        }
+      }
+      showToast(`Added ${guest.first} ${guest.last} to the guest list`, 'success');
     }
 
     // Event Listeners Setup
     function setupEventListeners() {
-      // Theme Toggle
       document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-      
-      // Sync button
+
       document.getElementById('refreshList').addEventListener('click', () => {
         syncVisitors(true);
       });
 
-      // Tab switching
-      const tabs = document.querySelectorAll('.tab-btn');
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          tabs.forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          
-          const tabName = tab.getAttribute('data-tab');
-          if (tabName === 'single') {
-            // copy bulk to single
-            if (document.getElementById('bulkBuildingSearch').value) {
-              document.getElementById('buildingSearch').value = document.getElementById('bulkBuildingSearch').value;
-              document.getElementById('buildingId').value = document.getElementById('bulkBuildingId').value;
-              document.getElementById('buildingPageId').value = document.getElementById('bulkBuildingPageId').value;
-            }
-            const bulkStartVal = getDateInputValue('bulkStartDate');
-            if (bulkStartVal && startCal) startCal.setDate(bulkStartVal);
-            if (document.getElementById('bulkStartTime').value) {
-              document.getElementById('startTime').value = document.getElementById('bulkStartTime').value;
-            }
-            const bulkEndVal = getDateInputValue('bulkEndDate');
-            if (bulkEndVal && endCal) endCal.setDate(bulkEndVal);
-            if (document.getElementById('bulkEndTime').value) {
-              document.getElementById('endTime').value = document.getElementById('bulkEndTime').value;
-            }
-            if (document.getElementById('bulkVisitorType').value) {
-              document.getElementById('visitorType').value = document.getElementById('bulkVisitorType').value;
-            }
+      setupBuildingAutocomplete('buildingSearch', 'buildingId', 'buildingSuggestions');
 
-            document.getElementById('singleTab').style.display = 'block';
-            document.getElementById('bulkTab').style.display = 'none';
-          } else {
-            // copy single to bulk
-            if (document.getElementById('buildingSearch').value) {
-              document.getElementById('bulkBuildingSearch').value = document.getElementById('buildingSearch').value;
-              document.getElementById('bulkBuildingId').value = document.getElementById('buildingId').value;
-              document.getElementById('bulkBuildingPageId').value = document.getElementById('buildingPageId').value;
-            }
-            const startVal = getDateInputValue('startDate');
-            if (startVal && bulkStartCal) bulkStartCal.setDate(startVal);
-            if (document.getElementById('startTime').value) {
-              document.getElementById('bulkStartTime').value = document.getElementById('startTime').value;
-            }
-            const endVal = getDateInputValue('endDate');
-            if (endVal && bulkEndCal) bulkEndCal.setDate(endVal);
-            if (document.getElementById('endTime').value) {
-              document.getElementById('bulkEndTime').value = document.getElementById('endTime').value;
-            }
-            if (document.getElementById('visitorType').value) {
-              document.getElementById('bulkVisitorType').value = document.getElementById('visitorType').value;
-            }
+      const phoneEl = document.getElementById('hostPhone');
+      if (phoneEl) {
+        phoneEl.addEventListener('change', () => persistHostPhone(phoneEl.value));
+      }
 
-            document.getElementById('singleTab').style.display = 'none';
-            document.getElementById('bulkTab').style.display = 'block';
-          }
-        });
-      });
+      document.getElementById('btnRegister').addEventListener('click', handleRegisterSubmit);
 
-      // Form Autocomplete for First/Last/Email
-      setupInputAutocomplete('first', 'firstSuggestions', 'first');
-      setupInputAutocomplete('last', 'lastSuggestions', 'last');
-      setupInputAutocomplete('email', 'emailSuggestions', 'email');
-
-      // Building Search Autocomplete
-      setupBuildingAutocomplete('buildingSearch', 'buildingId', 'buildingPageId', 'buildingSuggestions');
-      setupBuildingAutocomplete('bulkBuildingSearch', 'bulkBuildingId', 'bulkBuildingPageId', 'bulkBuildingSuggestions');
-
-      // Single Form Submit
-      document.getElementById('registrationForm').addEventListener('submit', handleSingleSubmit);
-
-      // Bulk Submit
-      document.getElementById('btnRegisterBulk').addEventListener('click', handleBulkSubmit);
-
-      // Visitor List Filter
       document.getElementById('visitorFilter').addEventListener('input', (e) => {
         renderVisitorList(e.target.value);
       });
     }
 
-    // Generic Text Field Autocomplete suggestions
-    function setupInputAutocomplete(inputId, suggestionsId, fieldKey) {
-      const input = document.getElementById(inputId);
-      const suggestionsBox = document.getElementById(suggestionsId);
-      
-      input.addEventListener('input', () => {
-        const val = input.value.trim().toLowerCase();
-        if (val.length < 1) {
-          suggestionsBox.style.display = 'none';
-          return;
-        }
-        
-        // Filter history for matches
-        const matches = state.history.filter(guest => 
-          guest[fieldKey].toLowerCase().includes(val)
-        );
-        
-        if (matches.length === 0) {
-          suggestionsBox.style.display = 'none';
-          return;
-        }
-        
-        suggestionsBox.innerHTML = '';
-        suggestionsBox.style.display = 'block';
-        
-        // Deduplicate suggestions
-        const uniqueVals = [...new Set(matches.map(m => m[fieldKey]))].slice(0, 5);
-        
-        uniqueVals.forEach(matchVal => {
-          const div = document.createElement('div');
-          div.className = 'suggestion-item';
-          
-          // Highlight matching characters
-          const regex = new RegExp(`(${val})`, 'gi');
-          const highlighted = matchVal.replace(regex, '<strong>$1</strong>');
-          div.innerHTML = highlighted;
-          
-          div.addEventListener('click', () => {
-            input.value = matchVal;
-            suggestionsBox.style.display = 'none';
-            
-            // If selecting email, auto-fill first and last too
-            if (fieldKey === 'email') {
-              const guestObj = matches.find(m => m.email === matchVal);
-              if (guestObj) {
-                document.getElementById('first').value = guestObj.first;
-                document.getElementById('last').value = guestObj.last;
-                
-                // Auto-fill building if present in history record
-                if (guestObj.buildingName) {
-                  const bInput = document.getElementById('buildingSearch');
-                  const bId = document.getElementById('buildingId');
-                  const bPageId = document.getElementById('buildingPageId');
-                  if (bInput && bId && bPageId) {
-                    bInput.value = guestObj.buildingName;
-                    bId.value = guestObj.buildingId;
-                    bPageId.value = guestObj.buildingPageId;
-                  }
-                }
-              }
-            }
-          });
-          suggestionsBox.appendChild(div);
-        });
-      });
-
-      // Hide suggestions when clicking outside
-      document.addEventListener('click', (e) => {
-        if (e.target !== input && e.target !== suggestionsBox) {
-          suggestionsBox.style.display = 'none';
-        }
-      });
-    }
-
     // Building Autocomplete Setup
-    function setupBuildingAutocomplete(inputId, idHolderId, pageIdHolderId, suggestionsId) {
+    function setupBuildingAutocomplete(inputId, idHolderId, suggestionsId) {
       const input = document.getElementById(inputId);
       const idHolder = document.getElementById(idHolderId);
-      const pageIdHolder = document.getElementById(pageIdHolderId);
       const suggestionsBox = document.getElementById(suggestionsId);
 
       function tryResolveBuilding() {
@@ -1695,10 +1617,8 @@ body.light-theme .toast.info svg {
         };
 
         const resolveFromEntry = (b) => {
-          const displayName = b.BUILDING_NAME || b.building_name || b.BuildingName || b.name || input.value;
-          input.value = displayName;
-          idHolder.value = b.BUILDING_ID || b.building_id || b.BuildingID || b.buildingId || b.id || '';
-          pageIdHolder.value = b.PAGEID || b.PERMSPAGEID || b.pageId || b.PageID || b.pageid || '';
+          input.value = getBuildingName(b) || input.value;
+          idHolder.value = getBuildingId(b);
         };
 
         const exact = state.buildings.find(b => anyFieldMatch(b, val, true));
@@ -1717,7 +1637,6 @@ body.light-theme .toast.info svg {
 
       input.addEventListener('input', () => {
         idHolder.value = '';
-        pageIdHolder.value = '';
 
         const val = input.value.trim().toLowerCase();
         if (val.length < 2) {
@@ -1753,22 +1672,20 @@ body.light-theme .toast.info svg {
           const div = document.createElement('div');
           div.className = 'suggestion-item';
 
-          const name = building.BUILDING_NAME || building.building_name || building.BuildingName || building.name || '';
-          const bldgId = building.BUILDING_ID || building.building_id || building.BuildingID || building.id || '';
-          const pageId = building.PAGEID || building.PERMSPAGEID || building.pageId || building.PageID || building.pageid || '';
-          const addr = building.ADDRESS_SIMPLE || building.address || '';
+          const name = getBuildingName(building);
+          const bldgId = getBuildingId(building);
+          const addr = building.ADDRESS_SIMPLE || building.ADDRESS_ALT || building.address || '';
           const escapedVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const regex = new RegExp(`(${escapedVal})`, 'gi');
           const displayText = name || addr || JSON.stringify(building).substring(0, 60);
           const highlighted = displayText.replace(regex, '<strong>$1</strong>');
-          const secondaryInfo = name ? (addr ? addr : `ID: ${bldgId}`) : `ID: ${bldgId}`;
+          const secondaryInfo = name ? (addr ? addr.split(' OR ')[0] : `ID: ${bldgId}`) : `ID: ${bldgId}`;
           div.innerHTML = `${highlighted} <span style="font-size: 0.75rem; color: var(--text-muted); float: right;">${secondaryInfo}</span>`;
 
           div.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            input.value = name || addr;
+            input.value = name || addr.split(' OR ')[0];
             idHolder.value = bldgId;
-            pageIdHolder.value = pageId;
             suggestionsBox.style.display = 'none';
           });
           suggestionsBox.appendChild(div);
@@ -1794,7 +1711,7 @@ body.light-theme .toast.info svg {
       // Try to resolve from window.gBuildingData first
       if (window.gBuildingData && window.gBuildingData.length > 0) {
         state.buildings = window.gBuildingData;
-        console.log('Resolved buildings from window.gBuildingData:', state.buildings.length);
+        console.log('[NYU-ModernReg] Resolved buildings from window.gBuildingData:', state.buildings.length);
         return;
       }
 
@@ -1804,13 +1721,9 @@ body.light-theme .toast.info svg {
       }
 
       try {
-        // Sync tokens if they are empty in state
-        if (!state.sesstok) state.sesstok = window.__sesstok || '';
-        if (!state.pid) state.pid = window.__pid || '';
+        refreshSessionTokens();
 
-        const resolvedPageID = window.gPageID || 
-                               (document.querySelector('input[name="pageID"]') ? document.querySelector('input[name="pageID"]').value : '') || 
-                               '-1';
+        const resolvedPageID = resolveFormPageId() || '-1';
 
         const payload = {
           __sesstok: state.sesstok,
@@ -1830,15 +1743,19 @@ body.light-theme .toast.info svg {
         });
 
         if (response.ok) {
-          state.buildings = await response.json();
-          console.log('Successfully fetched buildings:', state.buildings.length);
+          const data = await response.json();
+          state.buildings = Array.isArray(data) ? data : [];
+          if (state.buildings.length) {
+            window.gBuildingData = state.buildings;
+          }
+          console.log('[NYU-ModernReg] Successfully fetched buildings:', state.buildings.length);
         } else {
-          console.error('Failed to fetch buildings:', response.status);
-          state.buildings = getMockBuildings(); // fallback to let autocomplete work
+          console.error('[NYU-ModernReg] Failed to fetch buildings:', response.status);
+          state.buildings = [];
         }
       } catch (err) {
-        console.error('Error fetching buildings:', err);
-        state.buildings = getMockBuildings(); // fallback
+        console.error('[NYU-ModernReg] Error fetching buildings:', err);
+        state.buildings = [];
       }
     }
 
@@ -1956,12 +1873,19 @@ body.light-theme .toast.info svg {
 
       // Live endpoint registration request
       try {
+        refreshSessionTokens();
+        if (guestData.__sesstok !== state.sesstok && state.sesstok) {
+          guestData.__sesstok = state.sesstok;
+        }
+
         const params = new URLSearchParams();
         for (const key in guestData) {
-          if (Array.isArray(guestData[key])) {
-            guestData[key].forEach(val => params.append(key, val));
+          const val = guestData[key];
+          if (val === undefined || val === null) continue;
+          if (Array.isArray(val)) {
+            val.forEach((item) => params.append(key, item));
           } else {
-            params.append(key, guestData[key]);
+            params.append(key, val);
           }
         }
 
@@ -1974,26 +1898,51 @@ body.light-theme .toast.info svg {
           body: params.toString()
         });
 
-        if (response.ok) {
-          const resultText = await response.text();
-          let resultJson = {};
-          try {
-            resultJson = JSON.parse(resultText);
-          } catch(e) {
-            if (resultText.includes('success') || resultText.includes('location.href')) {
-              return { success: true };
-            }
+        const resultText = await response.text();
+        // IDENTIGY sometimes prefixes JSON with an HTML marker
+        const jsonText = resultText.includes('<!-- RESULT -->')
+          ? resultText.slice(resultText.indexOf('<!-- RESULT -->') + '<!-- RESULT -->'.length)
+          : resultText;
+
+        let resultJson = null;
+        try {
+          resultJson = JSON.parse(jsonText.trim());
+        } catch (e) {
+          if (!response.ok) {
+            return { success: false, error: `HTTP ${response.status} Error` };
           }
-          
-          if (resultJson.error || resultJson.success === false) {
-            return { success: false, error: resultJson.error || 'Server rejected registration' };
+          // Non-JSON bodies are only treated as success for known redirect/script replies.
+          // Do not match loose words like "visitor" — error HTML pages often contain them.
+          const trimmed = resultText.trim();
+          if (/location\.href\s*=/i.test(trimmed) || /window\.location\s*=/i.test(trimmed)) {
+            return { success: true };
           }
-          return { success: true };
-        } else {
-          return { success: false, error: `HTTP ${response.status} Error` };
+          return {
+            success: false,
+            error: 'Unexpected server response (registration may not have completed)'
+          };
         }
+
+        if (!response.ok) {
+          return {
+            success: false,
+            error: resultJson.Error || resultJson.error || resultJson.AlertMsg || `HTTP ${response.status} Error`
+          };
+        }
+
+        // Match IDENTIGY requestJson semantics: Error / AlertMsg reject; Redirect navigates.
+        if (resultJson.Error || resultJson.error) {
+          return { success: false, error: resultJson.Error || resultJson.error };
+        }
+        if (resultJson.AlertMsg) {
+          return { success: false, error: resultJson.AlertMsg };
+        }
+        if (resultJson.success === false) {
+          return { success: false, error: resultJson.message || 'Server rejected registration' };
+        }
+        return { success: true };
       } catch (err) {
-        console.error('Registration failed:', err);
+        console.error('[NYU-ModernReg] Registration failed:', err);
         return { success: false, error: err.message };
       }
     }
@@ -2081,49 +2030,76 @@ body.light-theme .toast.info svg {
       }
     }
 
-    // Form Handlers: Single Guest Submission
-    async function handleSingleSubmit(e) {
-      e.preventDefault();
-      
-      const first = document.getElementById('first').value.trim();
-      const last = document.getElementById('last').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const visitorType = document.getElementById('visitorType').value;
-      const buildingName = document.getElementById('buildingSearch').value.trim();
-      let buildingId = document.getElementById('buildingId').value;
-      let buildingPageId = document.getElementById('buildingPageId').value;
-      
-      if (!buildingId || !buildingPageId) {
+    function ensureBuildingSelected(searchInputId, idHolderId) {
+      const buildingName = document.getElementById(searchInputId).value.trim();
+      let buildingId = document.getElementById(idHolderId).value;
+
+      if (!buildingId) {
+        if (state.buildings.length === 0 && window.gBuildingData && window.gBuildingData.length > 0) {
+          state.buildings = window.gBuildingData;
+        }
         const searchVal = buildingName.toLowerCase();
-        const exactMatch = state.buildings.find(b => {
-          const name = (b.BUILDING_NAME || '').toLowerCase();
-          const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-          return name === searchVal || addr === searchVal;
-        });
-        if (exactMatch) {
-          buildingId = exactMatch.BUILDING_ID || '';
-          buildingPageId = exactMatch.PAGEID || exactMatch.PERMSPAGEID || '';
-          document.getElementById('buildingSearch').value = exactMatch.BUILDING_NAME || '';
-          document.getElementById('buildingId').value = buildingId;
-          document.getElementById('buildingPageId').value = buildingPageId;
-        } else {
-          const matches = state.buildings.filter(b => {
-            const name = (b.BUILDING_NAME || '').toLowerCase();
-            const addr = (b.ADDRESS_SIMPLE || '').toLowerCase();
-            return name.includes(searchVal) || addr.includes(searchVal);
-          });
-          if (matches.length === 1) {
-            buildingId = matches[0].BUILDING_ID || '';
-            buildingPageId = matches[0].PAGEID || matches[0].PERMSPAGEID || '';
-            document.getElementById('buildingSearch').value = matches[0].BUILDING_NAME || '';
-            document.getElementById('buildingId').value = buildingId;
-            document.getElementById('buildingPageId').value = buildingPageId;
+        const matchField = (b, exact) => {
+          for (const key of Object.keys(b)) {
+            const v = b[key];
+            if (typeof v !== 'string') continue;
+            const lv = v.toLowerCase();
+            if (exact ? lv === searchVal : lv.includes(searchVal)) return true;
           }
+          return false;
+        };
+        const exact = state.buildings.find((b) => matchField(b, true));
+        const pick = exact || (() => {
+          const partials = state.buildings.filter((b) => matchField(b, false));
+          return partials.length === 1 ? partials[0] : null;
+        })();
+        if (pick) {
+          buildingId = getBuildingId(pick);
+          document.getElementById(searchInputId).value = getBuildingName(pick) || buildingName;
+          document.getElementById(idHolderId).value = buildingId;
         }
       }
 
-      if (!buildingId || !buildingPageId) {
-        showToast('Please select a valid NYU building from the suggestions', 'error');
+      return {
+        buildingId,
+        buildingName: document.getElementById(searchInputId).value.trim()
+      };
+    }
+
+    // Form Handler: multi-guest registration (also works for a single row)
+    async function handleRegisterSubmit() {
+      const pasteData = document.getElementById('guestPaste').value.trim();
+      const visitorType = document.getElementById('visitorType').value;
+      const hostPhone = (document.getElementById('hostPhone')?.value || '').trim();
+      const roomNotes = (document.getElementById('roomNotes')?.value || '').trim();
+      const onBehalfOf = (document.getElementById('onBehalfOf')?.value || '').trim();
+
+      if (!pasteData) {
+        showToast('Please paste at least one guest row', 'error');
+        return;
+      }
+
+      if (!hostPhone) {
+        showToast('Host phone number is required by NYU JRNY', 'error');
+        return;
+      }
+
+      if (state.buildings.length === 0) {
+        if (window.gBuildingData && window.gBuildingData.length > 0) {
+          state.buildings = window.gBuildingData;
+        } else {
+          await fetchBuildings();
+        }
+      }
+
+      const { buildingId, buildingName } = ensureBuildingSelected('buildingSearch', 'buildingId');
+      if (!buildingId) {
+        showToast('Please select an NYU building from the suggestions', 'error');
+        return;
+      }
+
+      if (!resolveFormPageId() && !state.isMockMode) {
+        showToast('Portal session page ID missing — refresh the NYU page and try again', 'error');
         return;
       }
 
@@ -2134,131 +2110,10 @@ body.light-theme .toast.info svg {
 
       const entryDateRaw = new Date(`${startDate}T${startTime}`);
       const exitDateRaw = new Date(`${endDate}T${endTime}`);
-      
-      if (exitDateRaw <= entryDateRaw) {
-        showToast('Departure time must be after arrival time', 'error');
-        return;
-      }
 
-      const tzOffsetHours = String(new Date().getTimezoneOffset() / 60);
-
-      const payload = {
-        action: 'Register',
-        __sesstok: state.sesstok,
-        first: first,
-        last: last,
-        local_VisitorType: visitorType,
-        local_cdEmail: email,
-        'pageID[]': buildingPageId,
-        buildingID1: buildingId,
-        buildingName1: buildingName,
-        client_tz: tzOffsetHours,
-        entryDate: formatApiDate(entryDateRaw),
-        exitDate: formatApiDate(exitDateRaw),
-        approvedIds: '[]'
-      };
-
-      showToast('Submitting guest registration...', 'info');
-
-      const res = await registerGuest(payload);
-      
-      if (res.success) {
-        showToast(`Registered ${first} ${last} successfully!`, 'success');
-        saveGuestToHistory(first, last, email, buildingName, buildingId, buildingPageId);
-        
-        // Clear form except building & date preferences
-        document.getElementById('first').value = '';
-        document.getElementById('last').value = '';
-        document.getElementById('email').value = '';
-        
-        // Refresh list
-        if (state.isMockMode) {
-          syncVisitors();
-        } else {
-          setTimeout(() => window.location.reload(), 1000);
-        }
-      } else {
-        showToast(`Failed: ${res.error || 'Unknown Error'}`, 'error');
-      }
-    }
-
-    // Form Handlers: Bulk Guest Registration
-    async function handleBulkSubmit() {
-      const pasteData = document.getElementById('bulkPaste').value.trim();
-      const visitorType = document.getElementById('bulkVisitorType').value;
-      const buildingName = document.getElementById('bulkBuildingSearch').value.trim();
-      let buildingId = document.getElementById('bulkBuildingId').value;
-      let buildingPageId = document.getElementById('bulkBuildingPageId').value;
-      
-      if (!buildingId || !buildingPageId) {
-        if (state.buildings.length === 0) {
-          if (window.gBuildingData && window.gBuildingData.length > 0) {
-            state.buildings = window.gBuildingData;
-          } else {
-            await fetchBuildings();
-          }
-        }
-
-        const searchVal = buildingName.toLowerCase();
-        const allStringValsMatch = (b, sv, exact) => {
-          for (const key of Object.keys(b)) {
-            const v = b[key];
-            if (typeof v === 'string') {
-              if (exact ? v.toLowerCase() === sv : v.toLowerCase().includes(sv)) return true;
-            }
-          }
-          return false;
-        };
-
-        const resolveBldg = (b) => {
-          buildingId = b.BUILDING_ID || b.building_id || b.BuildingID || b.buildingId || b.id || '';
-          buildingPageId = b.PAGEID || b.PERMSPAGEID || b.pageId || b.PageID || b.pageid || '';
-          const displayName = b.BUILDING_NAME || b.building_name || b.BuildingName || b.name || buildingName;
-          document.getElementById('bulkBuildingSearch').value = displayName;
-          document.getElementById('bulkBuildingId').value = buildingId;
-          document.getElementById('bulkBuildingPageId').value = buildingPageId;
-        };
-
-        const exact = state.buildings.find(b => allStringValsMatch(b, searchVal, true));
-        if (exact) {
-          resolveBldg(exact);
-        } else {
-          const partials = state.buildings.filter(b => allStringValsMatch(b, searchVal, false));
-          if (partials.length === 1) {
-            resolveBldg(partials[0]);
-          } else if (partials.length > 1) {
-            const startsWith = partials.filter(b => {
-              for (const key of Object.keys(b)) {
-                const v = b[key];
-                if (typeof v === 'string' && v.toLowerCase().startsWith(searchVal)) return true;
-              }
-              return false;
-            });
-            resolveBldg(startsWith.length === 1 ? startsWith[0] : partials[0]);
-          }
-        }
-      }
-
-      if (!pasteData) {
-        showToast('Please paste visitor details', 'error');
-        return;
-      }
-
-      if (!buildingId || !buildingPageId) {
-        showToast('Please select an NYU building from the suggestions', 'error');
-        return;
-      }
-
-      const startDate = getDateInputValue('bulkStartDate');
-      const startTime = document.getElementById('bulkStartTime').value;
-      const endDate = getDateInputValue('bulkEndDate');
-      const endTime = document.getElementById('bulkEndTime').value;
-
-      const entryDateRaw = new Date(`${startDate}T${startTime}`);
-      const exitDateRaw = new Date(`${endDate}T${endTime}`);
-      
-      if (exitDateRaw <= entryDateRaw) {
-        showToast('Departure time must be after arrival time', 'error');
+      const stayError = validateStayWindow(entryDateRaw, exitDateRaw);
+      if (stayError) {
+        showToast(stayError, 'error');
         return;
       }
 
@@ -2268,11 +2123,10 @@ body.light-theme .toast.info svg {
         return;
       }
 
-      const queueContainer = document.getElementById('bulkQueue');
+      const queueContainer = document.getElementById('guestQueue');
       queueContainer.innerHTML = '';
       queueContainer.style.display = 'block';
 
-      // Create queue elements
       const queueItems = guests.map((guest, idx) => {
         const div = document.createElement('div');
         div.className = 'queue-item';
@@ -2284,53 +2138,54 @@ body.light-theme .toast.info svg {
         return { ...guest, statusSpanId: `queue-${idx}` };
       });
 
-      showToast(`Beginning registration of ${guests.length} visitors...`, 'info');
-      const tzOffsetHours = String(new Date().getTimezoneOffset() / 60);
+      persistHostPhone(hostPhone);
+      showToast(`Registering ${guests.length} visitor${guests.length === 1 ? '' : 's'}...`, 'info');
 
-      // Register guests sequentially
+      let successCount = 0;
       for (let i = 0; i < queueItems.length; i++) {
         const item = queueItems[i];
         const statusSpan = document.getElementById(item.statusSpanId);
-        
+
         statusSpan.className = 'queue-status status-sending';
         statusSpan.innerHTML = 'Sending...';
 
-        const payload = {
-          action: 'Register',
-          __sesstok: state.sesstok,
+        const payload = buildRegistrationPayload({
           first: item.first,
           last: item.last,
-          local_VisitorType: visitorType,
-          local_cdEmail: item.email,
-          'pageID[]': buildingPageId,
-          buildingID1: buildingId,
-          buildingName1: buildingName,
-          client_tz: tzOffsetHours,
-          entryDate: formatApiDate(entryDateRaw),
-          exitDate: formatApiDate(exitDateRaw),
-          approvedIds: '[]'
-        };
+          email: item.email,
+          visitorType,
+          buildingId,
+          buildingName,
+          hostPhone,
+          roomNotes,
+          onBehalfOf,
+          entryDateRaw,
+          exitDateRaw
+        });
 
         const res = await registerGuest(payload);
 
         if (res.success) {
+          successCount += 1;
           statusSpan.className = 'queue-status status-success';
           statusSpan.innerHTML = '✓ Success';
-          saveGuestToHistory(item.first, item.last, item.email, buildingName, buildingId, buildingPageId);
+          saveGuestToHistory(item.first, item.last, item.email, buildingName, buildingId, '');
         } else {
           statusSpan.className = 'queue-status status-failed';
           statusSpan.innerHTML = `✗ Failed: ${res.error || 'Server error'}`;
         }
-        
-        // Pause briefly between calls
+
         await new Promise(resolve => setTimeout(resolve, 300));
       }
 
-      showToast('Bulk registration process finished', 'success');
-      document.getElementById('bulkPaste').value = '';
+      showToast(
+        `Registration finished: ${successCount}/${guests.length} succeeded`,
+        successCount === guests.length ? 'success' : 'warning'
+      );
+      document.getElementById('guestPaste').value = '';
       if (state.isMockMode) {
         syncVisitors();
-      } else {
+      } else if (successCount > 0) {
         setTimeout(() => window.location.reload(), 1500);
       }
     }
@@ -2473,19 +2328,18 @@ body.light-theme .toast.info svg {
 
         // Button event bindings
         card.querySelector('.btn-dup').addEventListener('click', () => {
-          document.getElementById('first').value = visitor.first;
-          document.getElementById('last').value = visitor.last;
-          document.getElementById('email').value = visitor.email;
-          
-          const matchingB = state.buildings.find(b => b.BUILDING_NAME.includes(visitor.buildingName) || visitor.buildingName.includes(b.BUILDING_NAME));
+          appendGuestRow(visitor.first, visitor.last, visitor.email || '');
+
+          const matchingB = state.buildings.find((b) => {
+            const name = getBuildingName(b);
+            return name && (name.includes(visitor.buildingName) || visitor.buildingName.includes(name));
+          });
           if (matchingB) {
-            document.getElementById('buildingSearch').value = matchingB.BUILDING_NAME;
-            document.getElementById('buildingId').value = matchingB.BUILDING_ID;
-            document.getElementById('buildingPageId').value = matchingB.PAGEID || matchingB.PERMSPAGEID || '';
+            document.getElementById('buildingSearch').value = getBuildingName(matchingB);
+            document.getElementById('buildingId').value = getBuildingId(matchingB);
           }
-          
-          document.querySelector('.tab-btn[data-tab="single"]').click();
-          showToast(`Cloned details for ${visitor.first} ${visitor.last}`, 'success');
+
+          showToast(`Added ${visitor.first} ${visitor.last} to the guest list`, 'success');
         });
 
         const checkoutBtn = card.querySelector('.btn-checkout');
@@ -2565,12 +2419,12 @@ body.light-theme .toast.info svg {
     // Mock Data Generators
     function getMockBuildings() {
       return [
-        { BUILDING_ID: '28', BUILDING_NAME: '60 5th Ave (Center for Data Science)', ADDRESS_SIMPLE: '60 5th Ave', PAGEID: 'Jcc7bRea8eN4861Y' },
-        { BUILDING_ID: '102', BUILDING_NAME: 'Elmer Holmes Bobst Library', ADDRESS_SIMPLE: '70 Washington Square S', PAGEID: 'A182bRea8eN4861Y' },
-        { BUILDING_ID: '45', BUILDING_NAME: 'Warren Weaver Hall (Courant Institute)', ADDRESS_SIMPLE: '251 Mercer St', PAGEID: 'Wcc7bRea8eN4861Y' },
-        { BUILDING_ID: '15', BUILDING_NAME: 'Tisch Hall (Stern School of Business)', ADDRESS_SIMPLE: '40 West 4th St', PAGEID: 'Tcc7bRea8eN4861Y' },
-        { BUILDING_ID: '88', BUILDING_NAME: 'Kimmel Center for University Life', ADDRESS_SIMPLE: '60 Washington Square S', PAGEID: 'Kcc7bRea8eN4861Y' },
-        { BUILDING_ID: '201', BUILDING_NAME: '370 Jay Street (NYU Tandon)', ADDRESS_SIMPLE: '370 Jay St', PAGEID: 'J201bRea8eN4861Y' }
+        { BUILDING_ID: 'B-60FAV', BUILDING_NAME: '60 Fifth Avenue', ADDRESS_SIMPLE: 'Forbes Building, New York, United States, 10011', ADDRESS_ALT: '60 Fifth Avenue, New York, United States, 10011', PAGEID: '', PERMSPAGEID: 'H118' },
+        { BUILDING_ID: 'B-BOBST', BUILDING_NAME: 'Elmer Holmes Bobst Library', ADDRESS_SIMPLE: '70 Washington Square S, New York, United States, 10012', PAGEID: '', PERMSPAGEID: 'H118' },
+        { BUILDING_ID: 'B-WWH', BUILDING_NAME: 'Warren Weaver Hall', ADDRESS_SIMPLE: '251 Mercer St, New York, United States, 10012', PAGEID: '', PERMSPAGEID: 'H118' },
+        { BUILDING_ID: 'B-TISCH', BUILDING_NAME: 'Tisch Hall', ADDRESS_SIMPLE: '40 West 4th St, New York, United States, 10012', PAGEID: '', PERMSPAGEID: 'H118' },
+        { BUILDING_ID: 'B-KIMMEL', BUILDING_NAME: 'Kimmel Center for University Life', ADDRESS_SIMPLE: '60 Washington Square S, New York, United States, 10012', PAGEID: '', PERMSPAGEID: 'H118' },
+        { BUILDING_ID: 'B-370JAY', BUILDING_NAME: '370 Jay Street', ADDRESS_SIMPLE: '370 Jay St, Brooklyn, United States, 11201', PAGEID: '', PERMSPAGEID: 'H118' }
       ];
     }
 
@@ -2601,16 +2455,28 @@ body.light-theme .toast.info svg {
 
         // Bootstrap (live portal)
         state.isMockMode = false;
-        if (!state.sesstok) state.sesstok = window.__sesstok || '';
-        if (!state.pid) state.pid = window.__pid || '';
-        if (!state.uhash) state.uhash = window.__uhash || '';
+        refreshSessionTokens();
 
         initTheme();
         initDatePickers();
         loadLocalStorageData();
         setupEventListeners();
 
-        fetchBuildings().then(() => syncVisitors());
+        const start = () => fetchBuildings().then(() => syncVisitors());
+        if (window.__sesstok && window.gPageID) {
+          start();
+        } else {
+          // Portal globals can land slightly after document-end
+          let tries = 0;
+          const wait = setInterval(() => {
+            tries += 1;
+            refreshSessionTokens();
+            if ((window.__sesstok && window.gPageID) || tries >= 40) {
+              clearInterval(wait);
+              start();
+            }
+          }, 100);
+        }
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {

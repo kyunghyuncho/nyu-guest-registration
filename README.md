@@ -2,7 +2,7 @@
 
 A browser userscript that replaces the default [NYU Visitor Host portal](https://nyu.identigy.io/patron/VisitorManagement/VisitorsHost.php) with a cleaner interface for preregistering guests. It runs entirely in your browser and talks to the same NYU/IDENTIGY backend as the official page.
 
-**Features:** single-guest and bulk registration, building autocomplete, guest history, custom calendar date pickers, visitor list sync, dark/light theme.
+**Features:** multi-guest registration (paste one or many rows), building autocomplete, host phone (required by JRNY), optional room/notes, guest history chips, custom calendar date pickers (90-day max), visitor list sync, dark/light theme.
 
 ---
 
@@ -20,7 +20,7 @@ You need **Google Chrome** (or another Chromium browser) and a userscript manage
 **Option A — One-click (easiest)**  
 With Tampermonkey enabled, open this link:
 
-**[Install NYU Guest Registration v1.0](https://github.com/kyunghyuncho/nyu-guest-registration/raw/main/NYU-Modern-Guest-Registration.user.js)**
+**[Install NYU Guest Registration v1.2](https://github.com/kyunghyuncho/nyu-guest-registration/raw/main/NYU-Modern-Guest-Registration.user.js)**
 
 Tampermonkey should show an installation prompt. Click **Install**.
 
@@ -82,9 +82,9 @@ node scripts/build-userscript.mjs
 
 ---
 
-## Bulk registration formats
+## Guest list formats
 
-Paste one guest per line, for example:
+Paste one guest per line (a single guest is fine), for example:
 
 ```
 Jane Doe, jane@example.com
