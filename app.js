@@ -52,15 +52,104 @@ function refreshSessionTokens() {
 
 /** Portal form pageID (gPageID), NOT building.PAGEID / PERMSPAGEID. */
 function resolveFormPageId() {
-  const fromInput =
-    document.querySelector('#original-identigy-content input[name="pageID"]') ||
-    document.querySelector('input[name="pageID"]');
-  return (
-    window.gPageID ||
-    (fromInput && fromInput.value) ||
-    state.pageId ||
-    ''
+  const fromDom = firstFormPageIdValue(
+    [
+      '#original-identigy-content input[name="pageID"]',
+      '#original-identigy-content input[name="pageID[]"]',
+      '#original-identigy-content select[name="pageID"]',
+      'input[name="pageID"]',
+      'input[name="pageID[]"]',
+      'select[name="pageID"]',
+      '#PageID',
+      '#pageID'
+    ].join(', ')
   );
+  const captured = window.__nyuFormPageId ? String(window.__nyuFormPageId).trim() : '';
+  return String(window.gPageID || fromDom || captured || state.pageId || '').trim();
+}
+
+function firstFormPageIdValue(selector) {
+  const nodes = document.querySelectorAll(selector);
+  for (const el of nodes) {
+    const value = String(el.value || '').trim();
+    if (value) return value;
+  }
+  return '';
+}
+
+let formPageIdPromise = null;
+
+/**
+ * The host list page does not include gPageID. NYU returns it inside the
+ * HTML for action=BeforeRegister (the native "Register a visitor" form).
+ */
+function extractFormPageIdFromHtml(html) {
+  const scriptMatch = String(html).match(/\bgPageID\s*=\s*['"]([^'"]+)['"]/)
+    || String(html).match(/\bgPageID\s*=\s*([A-Za-z0-9_-]+)\s*;/);
+  if (scriptMatch && scriptMatch[1] && scriptMatch[1] !== '-1') return scriptMatch[1];
+
+  const doc = new DOMParser().parseFromString(String(html), 'text/html');
+  const byId = doc.getElementById('PageID') || doc.getElementById('pageID');
+  const byName = doc.querySelector('input[name="pageID"], input[name="pageID[]"], select[name="pageID"]');
+  const value = String((byId && byId.value) || (byName && byName.value) || '').trim();
+  return value && value !== '-1' ? value : '';
+}
+
+async function fetchPortalFormPageId() {
+  refreshSessionTokens();
+  const existing = resolveFormPageId();
+  if (existing) return existing;
+  if (!state.sesstok) return '';
+
+  const params = new URLSearchParams();
+  params.set('action', 'BeforeRegister');
+  params.set('newPreregistration', 'true');
+  params.set('__sesstok', state.sesstok);
+
+  const response = await fetch('/patron/VisitorManagement/visitorshost_save.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: params.toString()
+  });
+
+  let text = await response.text();
+  const marker = '<!-- RESULT -->';
+  const markerAt = text.indexOf(marker);
+  if (markerAt >= 0) text = text.slice(markerAt + marker.length);
+  text = text.trim();
+
+  if (text.startsWith('"') || text.startsWith('{') || text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed === 'string') text = parsed;
+    } catch (err) {
+      // Body is HTML rather than JSON.
+    }
+  }
+
+  const pageId = extractFormPageIdFromHtml(text);
+  if (pageId) {
+    window.__nyuFormPageId = pageId;
+    state.pageId = pageId;
+    console.log('[NYU-ModernReg] form page id loaded from BeforeRegister');
+  } else {
+    console.warn('[NYU-ModernReg] BeforeRegister did not include a form page id');
+  }
+  return pageId;
+}
+
+function ensureFormPageId() {
+  if (state.isMockMode) return Promise.resolve(resolveFormPageId());
+  if (resolveFormPageId()) return Promise.resolve(resolveFormPageId());
+  if (!formPageIdPromise) {
+    formPageIdPromise = fetchPortalFormPageId().finally(() => {
+      formPageIdPromise = null;
+    });
+  }
+  return formPageIdPromise;
 }
 
 function getBuildingId(building) {
@@ -1060,8 +1149,15 @@ async function handleRegisterSubmit() {
     return;
   }
 
+  if (!state.isMockMode) {
+    await ensureFormPageId();
+  }
   if (!resolveFormPageId() && !state.isMockMode) {
-    showToast('Portal session page ID missing — refresh the NYU page and try again', 'error');
+    console.warn('[NYU-ModernReg] form page ID missing', {
+      gPageID: window.gPageID || null,
+      captured: window.__nyuFormPageId || null
+    });
+    showToast('Could not read the NYU registration form. Reload the Visitors Host page and try again', 'error');
     return;
   }
 
