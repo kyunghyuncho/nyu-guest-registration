@@ -20,7 +20,7 @@ You need **Google Chrome** (or another Chromium browser) and a userscript manage
 **Option A — One-click (easiest)**  
 With Tampermonkey enabled, open this link:
 
-**[Install NYU Guest Registration v1.2](https://github.com/kyunghyuncho/nyu-guest-registration/raw/main/NYU-Modern-Guest-Registration.user.js)**
+**[Install NYU Guest Registration v1.4](https://github.com/kyunghyuncho/nyu-guest-registration/raw/main/NYU-Modern-Guest-Registration.user.js)**
 
 Tampermonkey should show an installation prompt. Click **Install**.
 

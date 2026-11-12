@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const VERSION = '1.2';
+const VERSION = '1.4';
 const INSTALL_URL =
   'https://github.com/kyunghyuncho/nyu-guest-registration/raw/main/NYU-Modern-Guest-Registration.user.js';
 
@@ -87,7 +87,7 @@ function extractAppLogic() {
     ''
   );
 
-  return `${withoutStandaloneBootstrap.trim()}\n\n    // Bootstrap (live portal)\n    state.isMockMode = false;\n    refreshSessionTokens();\n\n    initTheme();\n    initDatePickers();\n    loadLocalStorageData();\n    setupEventListeners();\n\n    const start = () => fetchBuildings().then(() => syncVisitors());\n    if (window.__sesstok && window.gPageID) {\n      start();\n    } else {\n      // Portal globals can land slightly after document-end\n      let tries = 0;\n      const wait = setInterval(() => {\n        tries += 1;\n        refreshSessionTokens();\n        if ((window.__sesstok && window.gPageID) || tries >= 40) {\n          clearInterval(wait);\n          start();\n        }\n      }, 100);\n    }`;
+  return `${withoutStandaloneBootstrap.trim()}\n\n    // Bootstrap (live portal)\n    state.isMockMode = false;\n    refreshSessionTokens();\n\n    initTheme();\n    initDatePickers();\n    loadLocalStorageData();\n    setupEventListeners();\n\n    const start = () => {\n      ensureFormPageId();\n      return fetchBuildings().then(() => syncVisitors());\n    };\n    if (window.__sesstok) {\n      start();\n    } else {\n      // Portal session token can land slightly after document-end\n      let tries = 0;\n      const wait = setInterval(() => {\n        tries += 1;\n        refreshSessionTokens();\n        if (window.__sesstok || tries >= 40) {\n          clearInterval(wait);\n          start();\n        }\n      }, 100);\n    }`;
 }
 
 function buildUserscript() {
@@ -121,8 +121,25 @@ ${css}
 ${html}
   \`;
 
+  function readPortalPageId() {
+    if (window.gPageID) return String(window.gPageID).trim();
+    const selectors = 'input[name="pageID"], input[name="pageID[]"], select[name="pageID"], #pageID';
+    for (const el of document.querySelectorAll(selectors)) {
+      const value = String(el.value || '').trim();
+      if (value) return value;
+    }
+    for (const script of document.scripts) {
+      if (script.src || !script.textContent) continue;
+      const match = script.textContent.match(/\\bgPageID\\s*=\\s*['"]([^'"]+)['"]/);
+      if (match && match[1]) return match[1];
+    }
+    return '';
+  }
+
   function initInjection() {
-    console.log('NYU Modern Guest UI Injector starting...');
+    const capturedPageId = readPortalPageId();
+    if (capturedPageId) window.__nyuFormPageId = capturedPageId;
+    console.log('[NYU-ModernReg] portal page id', capturedPageId ? 'present' : 'missing');
 
     const uiRoot = document.createElement('div');
     uiRoot.id = 'modern-ui-root';
@@ -160,11 +177,23 @@ ${html}
 ${logic.split('\n').map((line) => (line ? `    ${line}` : '')).join('\n')}
   }
 
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    initInjection();
-  } else {
-    window.addEventListener('DOMContentLoaded', initInjection);
+  // gPageID is not on the host list page. It arrives later from
+  // visitorshost_save.php?action=BeforeRegister. Show the overlay on the
+  // next turn so the portal's own DOMContentLoaded handlers still run.
+  function startWhenPortalReady() {
+    const inject = () => {
+      if (document.getElementById('modern-ui-root')) return;
+      initInjection();
+    };
+    const begin = () => setTimeout(inject, 0);
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', begin, { once: true });
+    } else {
+      begin();
+    }
   }
+
+  startWhenPortalReady();
 })();
 `;
 }

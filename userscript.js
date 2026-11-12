@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NYU Modern Guest Registration
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.4
 // @description  A modern front-end overlay for the NYU visitor registration portal.
 // @author       Kyunghyun Cho
 // @updateURL    https://github.com/kyunghyuncho/nyu-guest-registration/raw/main/NYU-Modern-Guest-Registration.user.js
@@ -13,7 +13,7 @@
 
 (function() {
   'use strict';
-  const SCRIPT_VERSION = '1.2';
+  const SCRIPT_VERSION = '1.4';
   console.log(`[NYU-ModernReg] v${SCRIPT_VERSION} loaded`);
 
   const cssStyles = `
@@ -1016,8 +1016,25 @@ body.light-theme .toast.info svg {
   </div>
   `;
 
+  function readPortalPageId() {
+    if (window.gPageID) return String(window.gPageID).trim();
+    const selectors = 'input[name="pageID"], input[name="pageID[]"], select[name="pageID"], #pageID';
+    for (const el of document.querySelectorAll(selectors)) {
+      const value = String(el.value || '').trim();
+      if (value) return value;
+    }
+    for (const script of document.scripts) {
+      if (script.src || !script.textContent) continue;
+      const match = script.textContent.match(/\bgPageID\s*=\s*['"]([^'"]+)['"]/);
+      if (match && match[1]) return match[1];
+    }
+    return '';
+  }
+
   function initInjection() {
-    console.log('NYU Modern Guest UI Injector starting...');
+    const capturedPageId = readPortalPageId();
+    if (capturedPageId) window.__nyuFormPageId = capturedPageId;
+    console.log('[NYU-ModernReg] portal page id', capturedPageId ? 'present' : 'missing');
 
     const uiRoot = document.createElement('div');
     uiRoot.id = 'modern-ui-root';
@@ -1102,15 +1119,104 @@ body.light-theme .toast.info svg {
 
     /** Portal form pageID (gPageID), NOT building.PAGEID / PERMSPAGEID. */
     function resolveFormPageId() {
-      const fromInput =
-        document.querySelector('#original-identigy-content input[name="pageID"]') ||
-        document.querySelector('input[name="pageID"]');
-      return (
-        window.gPageID ||
-        (fromInput && fromInput.value) ||
-        state.pageId ||
-        ''
+      const fromDom = firstFormPageIdValue(
+        [
+          '#original-identigy-content input[name="pageID"]',
+          '#original-identigy-content input[name="pageID[]"]',
+          '#original-identigy-content select[name="pageID"]',
+          'input[name="pageID"]',
+          'input[name="pageID[]"]',
+          'select[name="pageID"]',
+          '#PageID',
+          '#pageID'
+        ].join(', ')
       );
+      const captured = window.__nyuFormPageId ? String(window.__nyuFormPageId).trim() : '';
+      return String(window.gPageID || fromDom || captured || state.pageId || '').trim();
+    }
+
+    function firstFormPageIdValue(selector) {
+      const nodes = document.querySelectorAll(selector);
+      for (const el of nodes) {
+        const value = String(el.value || '').trim();
+        if (value) return value;
+      }
+      return '';
+    }
+
+    let formPageIdPromise = null;
+
+    /**
+     * The host list page does not include gPageID. NYU returns it inside the
+     * HTML for action=BeforeRegister (the native "Register a visitor" form).
+     */
+    function extractFormPageIdFromHtml(html) {
+      const scriptMatch = String(html).match(/\bgPageID\s*=\s*['"]([^'"]+)['"]/)
+        || String(html).match(/\bgPageID\s*=\s*([A-Za-z0-9_-]+)\s*;/);
+      if (scriptMatch && scriptMatch[1] && scriptMatch[1] !== '-1') return scriptMatch[1];
+
+      const doc = new DOMParser().parseFromString(String(html), 'text/html');
+      const byId = doc.getElementById('PageID') || doc.getElementById('pageID');
+      const byName = doc.querySelector('input[name="pageID"], input[name="pageID[]"], select[name="pageID"]');
+      const value = String((byId && byId.value) || (byName && byName.value) || '').trim();
+      return value && value !== '-1' ? value : '';
+    }
+
+    async function fetchPortalFormPageId() {
+      refreshSessionTokens();
+      const existing = resolveFormPageId();
+      if (existing) return existing;
+      if (!state.sesstok) return '';
+
+      const params = new URLSearchParams();
+      params.set('action', 'BeforeRegister');
+      params.set('newPreregistration', 'true');
+      params.set('__sesstok', state.sesstok);
+
+      const response = await fetch('/patron/VisitorManagement/visitorshost_save.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: params.toString()
+      });
+
+      let text = await response.text();
+      const marker = '<!-- RESULT -->';
+      const markerAt = text.indexOf(marker);
+      if (markerAt >= 0) text = text.slice(markerAt + marker.length);
+      text = text.trim();
+
+      if (text.startsWith('"') || text.startsWith('{') || text.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(text);
+          if (typeof parsed === 'string') text = parsed;
+        } catch (err) {
+          // Body is HTML rather than JSON.
+        }
+      }
+
+      const pageId = extractFormPageIdFromHtml(text);
+      if (pageId) {
+        window.__nyuFormPageId = pageId;
+        state.pageId = pageId;
+        console.log('[NYU-ModernReg] form page id loaded from BeforeRegister');
+      } else {
+        console.warn('[NYU-ModernReg] BeforeRegister did not include a form page id');
+      }
+      return pageId;
+    }
+
+    function ensureFormPageId() {
+      if (state.isMockMode) return Promise.resolve(resolveFormPageId());
+      if (resolveFormPageId()) return Promise.resolve(resolveFormPageId());
+      if (!formPageIdPromise) {
+        formPageIdPromise = fetchPortalFormPageId().finally(() => {
+          formPageIdPromise = null;
+        });
+      }
+      return formPageIdPromise;
     }
 
     function getBuildingId(building) {
@@ -2098,8 +2204,15 @@ body.light-theme .toast.info svg {
         return;
       }
 
+      if (!state.isMockMode) {
+        await ensureFormPageId();
+      }
       if (!resolveFormPageId() && !state.isMockMode) {
-        showToast('Portal session page ID missing — refresh the NYU page and try again', 'error');
+        console.warn('[NYU-ModernReg] form page ID missing', {
+          gPageID: window.gPageID || null,
+          captured: window.__nyuFormPageId || null
+        });
+        showToast('Could not read the NYU registration form. Reload the Visitors Host page and try again', 'error');
         return;
       }
 
@@ -2462,16 +2575,19 @@ body.light-theme .toast.info svg {
         loadLocalStorageData();
         setupEventListeners();
 
-        const start = () => fetchBuildings().then(() => syncVisitors());
-        if (window.__sesstok && window.gPageID) {
+        const start = () => {
+          ensureFormPageId();
+          return fetchBuildings().then(() => syncVisitors());
+        };
+        if (window.__sesstok) {
           start();
         } else {
-          // Portal globals can land slightly after document-end
+          // Portal session token can land slightly after document-end
           let tries = 0;
           const wait = setInterval(() => {
             tries += 1;
             refreshSessionTokens();
-            if ((window.__sesstok && window.gPageID) || tries >= 40) {
+            if (window.__sesstok || tries >= 40) {
               clearInterval(wait);
               start();
             }
@@ -2479,9 +2595,21 @@ body.light-theme .toast.info svg {
         }
   }
 
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    initInjection();
-  } else {
-    window.addEventListener('DOMContentLoaded', initInjection);
+  // gPageID is not on the host list page. It arrives later from
+  // visitorshost_save.php?action=BeforeRegister. Show the overlay on the
+  // next turn so the portal's own DOMContentLoaded handlers still run.
+  function startWhenPortalReady() {
+    const inject = () => {
+      if (document.getElementById('modern-ui-root')) return;
+      initInjection();
+    };
+    const begin = () => setTimeout(inject, 0);
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', begin, { once: true });
+    } else {
+      begin();
+    }
   }
+
+  startWhenPortalReady();
 })();
